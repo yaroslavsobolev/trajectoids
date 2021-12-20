@@ -4,9 +4,6 @@ import trimesh
 import matplotlib.pyplot as plt
 from skimage import io
 
-r = 1
-target_folder = 'trajectory_projects/wave_1/'
-
 def get_trajectory_from_raster_image(filename='ibs_v5-01.png', do_plotting=True):
     image = io.imread(filename)[:,:,0]
     data0 = np.zeros(shape=(image.shape[0], 2))
@@ -55,54 +52,54 @@ def rotation_to_origin(index_in_trajectory, data):
     print('Sum_theta = {0}'.format(theta_sum))
     return combined_matrix
 
-# # sweeping parameter space for optimal match of the starting and ending orientation
-# N = 30
-# M = 30
-# angles = np.zeros(shape=(N, M))
-# xs = np.zeros_like(angles)
-# ys = np.zeros_like(angles)
-# for i, kx in enumerate(np.linspace(1.03, 1.05, N)):
-#     for j, ky in enumerate(np.linspace(0.53, 0.54, M)):
-#         data = np.copy(data0)
-#         data[:, 0] = data[:, 0] * kx
-#         data[:, 1] = data[:, 1] * ky# +  kx * np.sin(data0[:, 0])
-#         rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(rotation_to_origin(data.shape[0]-1, data))
-#         angle = rotation_of_entire_traj[0]
-#         xs[i, j] = kx
-#         ys[i, j] = ky
-#         angles[i, j] = angle
-#
-# print('Min angle = {0}'.format(np.min(np.abs(angles))))
-# f3 = plt.figure(3)
-# plt.pcolormesh(xs, ys, np.abs(angles), cmap='viridis', vmin=0, vmax=0.05)
-# plt.colorbar()
-# plt.show()
+def plot_mismatch_map(data0, N, M, kx_range=(0.1, 2), ky_range=(0.1, 2)):
+    # sweeping parameter space for optimal match of the starting and ending orientation
+    N = 30
+    M = 30
+    angles = np.zeros(shape=(N, M))
+    xs = np.zeros_like(angles)
+    ys = np.zeros_like(angles)
+    for i, kx in enumerate(np.linspace(kx_range[0], kx_range[1], N)):
+        for j, ky in enumerate(np.linspace(ky_range[0], ky_range[1], M)):
+            data = np.copy(data0)
+            data[:, 0] = data[:, 0] * kx
+            data[:, 1] = data[:, 1] * ky# +  kx * np.sin(data0[:, 0])
+            rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(rotation_to_origin(data.shape[0]-1, data))
+            angle = rotation_of_entire_traj[0]
+            xs[i, j] = kx
+            ys[i, j] = ky
+            angles[i, j] = angle
 
-# This part of code overlays the experimental trajectory over the theoretical one, for illustration in the paper.
+    print('Min angle = {0}'.format(np.min(np.abs(angles))))
+    f3 = plt.figure(3)
+    plt.pcolormesh(xs, ys, np.abs(angles), cmap='viridis', vmin=0, vmax=0.05)
+    plt.colorbar()
+    plt.show()
 
-def compute_shape(data0, kx, ky):
+def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes', core_radius=1,
+                  cut_size = 10):
     data = np.copy(data0)
     data[:, 0] = data[:, 0] * kx
     data[:, 1] = data[:, 1] * ky  # +  kx * np.sin(data0[:, 0]/2)
-    # This code actually computes the positions and orientations of the boxes_for_cutting, and saves each box to a file.
-    # These boxes are later loaded to 3dsmax and subtracted from a sphere.
+    # This code computes the positions and orientations of the boxes_for_cutting, and saves each box to a file.
+    # These boxes are later loaded to 3dsmax and subtracted from a sphere
     rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(rotation_to_origin(data.shape[0] - 1, data))
     print(rotation_of_entire_traj)
     angle = rotation_of_entire_traj[0]
     print('Angle: {0}'.format(angle))
 
-    np.save(target_folder + 'path_data', data)
-    cut_size = 10
-    base_box = trimesh.creation.box(extents=[cut_size*r,cut_size*r,cut_size*r],
-                                    transform=trimesh.transformations.translation_matrix([0,0,-r-1*cut_size*r/2]))
+    np.save(folder_for_path + 'path_data', data)
+    base_box = trimesh.creation.box(extents=[cut_size * core_radius, cut_size * core_radius, cut_size * core_radius],
+                                    transform=trimesh.transformations.translation_matrix([0, 0, -core_radius - 1 * cut_size * core_radius / 2]))
     boxes_for_cutting = []
     for i, point in enumerate(data):
         # make a copy of the base box
         box_for_cutting = base_box.copy()
         # roll the sphere (without slipping) on the xy plane along with the box "glued" to it to the (0,0) point of origin
+        # Not optimized here. Would become vastly faster if, for example, you cache the rotation matrices.
         box_for_cutting.apply_transform(rotation_to_origin(i, data))
         boxes_for_cutting.append(box_for_cutting.copy())
 
     for i, box in enumerate(boxes_for_cutting):
         print(i)
-        box.export('cut_meshes/test_{0}.obj'.format(i))
+        box.export('{0}/test_{1}.obj'.format(folder_for_meshes, i))
