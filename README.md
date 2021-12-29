@@ -15,7 +15,7 @@ Clone (checkout) this repository after installing these dependencies:
 
 ## Running
 
-Example usage is:
+Example usage with loading input path from an image:
 ```
 from compute-trajectoids import *
 input_path = get_trajectory_from_raster_image('vector_images/ibs_particle/ibs_v5_current_bad-02.png')
@@ -27,7 +27,8 @@ compute_shape(input_path,
 ```
 
 This will compute the same number of "cutting boxes" as the number of points in the `input_path` and save 
-these boxes as `.obj` files into the `folder_for_meshes` directory.
+these boxes as `.obj` files into the `folder_for_meshes` directory. For obtaining the final trajetroid mesh,
+these boxes must be subtracted from a sphere of radius `R` greater than the core radius `r=1`.
 
 ## Citation
 If you use this code, please cite our paper:
