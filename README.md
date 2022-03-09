@@ -18,7 +18,7 @@ Clone (checkout) this repository after installing these dependencies:
 Example usage with loading input path from an image:
 ```
 from compute-trajectoids import *
-input_path = get_trajectory_from_raster_image('vector_images/ibs_particle/ibs_v5_current_bad-02.png')
+input_path = get_trajectory_from_raster_image('vector_images/ibs_particle/ibs_v5_current_good.png')
 compute_shape(input_path, 
               kx=1.0678, 
               ky=0.8009, 

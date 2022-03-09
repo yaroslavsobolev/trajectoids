@@ -49,13 +49,11 @@ def rotation_to_origin(index_in_trajectory, data):
             theta_sum += theta
             combined_matrix = trimesh.transformations.concatenate_matrices(rot_matr,
                                                                            combined_matrix)
-    print('Sum_theta = {0}'.format(theta_sum))
+    # print('Sum_theta = {0}'.format(theta_sum))
     return combined_matrix
 
-def plot_mismatch_map(data0, N, M, kx_range=(0.1, 2), ky_range=(0.1, 2)):
+def plot_mismatch_map(data0, N=30, M=30, kx_range=(0.1, 2), ky_range=(0.1, 2), ):
     # sweeping parameter space for optimal match of the starting and ending orientation
-    N = 30
-    M = 30
     angles = np.zeros(shape=(N, M))
     xs = np.zeros_like(angles)
     ys = np.zeros_like(angles)
@@ -88,7 +86,7 @@ def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes'
     angle = rotation_of_entire_traj[0]
     print('Angle: {0}'.format(angle))
 
-    np.save(folder_for_path + 'path_data', data)
+    np.save(folder_for_path + '/path_data', data)
     base_box = trimesh.creation.box(extents=[cut_size * core_radius, cut_size * core_radius, cut_size * core_radius],
                                     transform=trimesh.transformations.translation_matrix([0, 0, -core_radius - 1 * cut_size * core_radius / 2]))
     boxes_for_cutting = []
@@ -101,5 +99,5 @@ def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes'
         boxes_for_cutting.append(box_for_cutting.copy())
 
     for i, box in enumerate(boxes_for_cutting):
-        print(i)
+        print('Saving box for cutting: {0}'.format(i))
         box.export('{0}/test_{1}.obj'.format(folder_for_meshes, i))
