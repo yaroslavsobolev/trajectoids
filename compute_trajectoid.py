@@ -3,6 +3,7 @@ from numpy.linalg import norm as lnorm
 import trimesh
 import matplotlib.pyplot as plt
 from skimage import io
+from mayavi import mlab
 
 def get_trajectory_from_raster_image(filename='ibs_v5-01.png', do_plotting=True):
     image = io.imread(filename)[:,:,0]
@@ -101,3 +102,26 @@ def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes'
     for i, box in enumerate(boxes_for_cutting):
         print('Saving box for cutting: {0}'.format(i))
         box.export('{0}/test_{1}.obj'.format(folder_for_meshes, i))
+
+def trace_on_sphere(data0, kx, ky, core_radius=1):
+    data = np.copy(data0)
+    data[:, 0] = data[:, 0] * kx
+    data[:, 1] = data[:, 1] * ky  # +  kx * np.sin(data0[:, 0]/2)
+    point_at_plane = trimesh.PointCloud([[0, 0, -core_radius]])
+    sphere_trace = []
+    for i, point in enumerate(data):
+        point_at_plane_copy = point_at_plane.copy()
+        point_at_plane_copy.apply_transform(rotation_to_origin(i, data))
+        sphere_trace.append(np.array(point_at_plane_copy.vertices[0]))
+    sphere_trace = np.array(sphere_trace)
+
+    phi, theta = np.mgrid[0:np.pi:31j, 0:2 * np.pi:31j]
+    r = 0.95
+    x = r * np.sin(phi) * np.cos(theta)
+    y = r * np.sin(phi) * np.sin(theta)
+    z = r * np.cos(phi)
+    # mlab.mesh(x, y, z)
+    mlab.mesh(x, y, z, color=(0.7, 0.7, 0.7), opacity=0.736, representation='wireframe')
+
+    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1), tube_radius=0.05)
+    mlab.show()
