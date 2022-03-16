@@ -115,15 +115,40 @@ def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
         sphere_trace.append(np.array(point_at_plane_copy.vertices[0]))
     sphere_trace = np.array(sphere_trace)
     if do_plot:
+        mlab.figure(size=(1024, 768), \
+                    bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
         # tube_radius=0.05
         tube_radius = 0.01
-        # plot a simple sphere
-        phi, theta = np.mgrid[0:np.pi:31j, 0:2 * np.pi:31j]
-        r = 0.95
-        x = r * np.sin(phi) * np.cos(theta)
-        y = r * np.sin(phi) * np.sin(theta)
-        z = r * np.cos(phi)
-        mlab.mesh(x, y, z, color=(0.7, 0.7, 0.7), opacity=0.736, representation='wireframe')
+
+        sphere = mlab.points3d(0, 0, 0, scale_mode='none',
+                               scale_factor=2*core_radius - 2*tube_radius,
+                               color=(1, 1, 1),
+                               resolution=100,
+                               opacity=.8,
+                               name='Earth')
+        sphere.actor.property.frontface_culling = True
+
+        phi = np.linspace(0, 2*np.pi, 50)
+        r = core_radius - tube_radius + tube_radius/4
+        for theta in np.linspace(0, np.pi, 6)[:-1]:
+            mlab.plot3d(
+                r * np.sin(phi) * np.cos(theta),
+                r * np.sin(phi) * np.sin(theta),
+                r * np.cos(phi), tube_radius=tube_radius/4)
+
+        theta = np.linspace(0, 2*np.pi, 50)
+        for phi in np.linspace(0, np.pi, 6)[:-1]:
+            mlab.plot3d(
+                r * np.sin(phi) * np.cos(theta),
+                r * np.sin(phi) * np.sin(theta),
+                r * np.cos(phi) * np.ones_like(theta), tube_radius=tube_radius/4)
+        # # plot a simple sphere
+        # phi, theta = np.mgrid[0:np.pi:31j, 0:2 * np.pi:31j]
+        # r = 0.95
+        # x = r * np.sin(phi) * np.cos(theta)
+        # y = r * np.sin(phi) * np.sin(theta)
+        # z = r * np.cos(phi)
+        # mlab.mesh(x, y, z, color=(0.7, 0.7, 0.7), opacity=0.736, representation='surface') #representation='wireframe'
         # plot the trace
         l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
                         tube_radius=tube_radius)
@@ -132,16 +157,39 @@ def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
 
 def path_from_trace(sphere_trace, core_radius=1):
     sphere_trace_cloud = trimesh.PointCloud(sphere_trace)
-    for i in range(sphere_trace.shape[0]):
-        # find the vector of translation
-        vector_downward = np.array([0, 0, -core_radius])
-        assert np.isclose(vector_downward, sphere_trace[0]).all()
+    translation_vectors = []
+    position_vectors = [np.array([0, 0])]
+    vector_downward = np.array([0, 0, -core_radius])
+    for i in range(sphere_trace.shape[0]-1):
+        # make sure that current (i-th) point is the contact point and therefore coincides with the
+        #   downward vector.
+        assert np.isclose(vector_downward, sphere_trace[i]).all()
         to_next_point_of_trace = sphere_trace[i+1] - vector_downward
+
+        # find the vector of translation
+        theta = np.arccos(-sphere_trace[i + 1, 2] / core_radius)
+        arc_length = theta*core_radius
+        # Here the vector to_next_point_of_trace[:-1] is the xy-projection of to_next_point_of_trace vector
+        #   We normalize it and then multiply by arc length to get translation vector.
+        translation_vector = arc_length * to_next_point_of_trace[:-1] / np.linalg.norm(to_next_point_of_trace[:-1])
+        translation_vectors.append(np.copy(translation_vector))
+        position_vectors.append(position_vectors[-1] + translation_vector)
+
+        # Rotate the cloud of points containing the trace. This correspods to a roll of the sphere
+        #   from this point of the trace to the next point of the trace.
+        # After this roll, the next point of the tract will be the contact point (its vector will be
+        # directly downlward, equal to [0, 0, -core_radius]
+        # Axis of rotation lies in the xy plane and is perpendicular to the vector to_next_point_of_trace
         axis_of_rotation = [to_next_point_of_trace[1], -to_next_point_of_trace[0], 0]
-        theta = np.arccos(-sphere_trace[i+1, 2]/core_radius)
         rotation_matrix = trimesh.transformations.rotation_matrix(angle=-1*theta,
                                                 direction=axis_of_rotation,
                                                 point=[0, 0, 0])
         sphere_trace_cloud.apply_transform(rotation_matrix)
         sphere_trace = np.array(sphere_trace_cloud.vertices)
-        print(sphere_trace_cloud)
+
+    translation_vectors = np.array(translation_vectors)
+    position_vectors = np.array(position_vectors)
+    return position_vectors
+
+def bridge_two_points_by_arc():
+    x += 1
