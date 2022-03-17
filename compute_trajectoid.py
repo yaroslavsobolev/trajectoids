@@ -103,6 +103,30 @@ def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes'
         print('Saving box for cutting: {0}'.format(i))
         box.export('{0}/test_{1}.obj'.format(folder_for_meshes, i))
 
+def plot_sphere(r0, line_radius):
+    sphere = mlab.points3d(0, 0, 0, scale_mode='none',
+                           scale_factor=2*r0,
+                           color=(1, 1, 1),
+                           resolution=100,
+                           opacity=.8,
+                           name='Earth')
+    sphere.actor.property.frontface_culling = True
+
+    phi = np.linspace(0, 2*np.pi, 50)
+    r = r0 + line_radius
+    for theta in np.linspace(0, np.pi, 7)[:-1]:
+        mlab.plot3d(
+            r * np.sin(phi) * np.cos(theta),
+            r * np.sin(phi) * np.sin(theta),
+            r * np.cos(phi), tube_radius=line_radius)
+
+    theta = np.linspace(0, 2*np.pi, 50)
+    for phi in np.linspace(0, np.pi, 7)[:-1]:
+        mlab.plot3d(
+            r * np.sin(phi) * np.cos(theta),
+            r * np.sin(phi) * np.sin(theta),
+            r * np.cos(phi) * np.ones_like(theta), tube_radius=line_radius)
+
 def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
     data = np.copy(data0)
     data[:, 0] = data[:, 0] * kx
@@ -120,28 +144,7 @@ def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
         # tube_radius=0.05
         tube_radius = 0.01
 
-        sphere = mlab.points3d(0, 0, 0, scale_mode='none',
-                               scale_factor=2*core_radius - 2*tube_radius,
-                               color=(1, 1, 1),
-                               resolution=100,
-                               opacity=.8,
-                               name='Earth')
-        sphere.actor.property.frontface_culling = True
-
-        phi = np.linspace(0, 2*np.pi, 50)
-        r = core_radius - tube_radius + tube_radius/4
-        for theta in np.linspace(0, np.pi, 6)[:-1]:
-            mlab.plot3d(
-                r * np.sin(phi) * np.cos(theta),
-                r * np.sin(phi) * np.sin(theta),
-                r * np.cos(phi), tube_radius=tube_radius/4)
-
-        theta = np.linspace(0, 2*np.pi, 50)
-        for phi in np.linspace(0, np.pi, 6)[:-1]:
-            mlab.plot3d(
-                r * np.sin(phi) * np.cos(theta),
-                r * np.sin(phi) * np.sin(theta),
-                r * np.cos(phi) * np.ones_like(theta), tube_radius=tube_radius/4)
+        plot_sphere(r = core_radius - tube_radius, line_radius = tube_radius/4)
         # # plot a simple sphere
         # phi, theta = np.mgrid[0:np.pi:31j, 0:2 * np.pi:31j]
         # r = 0.95
@@ -191,5 +194,21 @@ def path_from_trace(sphere_trace, core_radius=1):
     position_vectors = np.array(position_vectors)
     return position_vectors
 
-def bridge_two_points_by_arc():
-    x += 1
+def bridge_two_points_by_arc(point1, point2, npoints = 10):
+    '''points are 3d vectors from center of unit sphere to sphere surface'''
+    # make sure that the lengths of input vectors are equal to unity
+    for point in [point1, point2]:
+        assert np.isclose(np.linalg.norm(point), 1)
+    axis_of_rotation = np.cross(point1, point2)
+    sum_theta = np.arccos(np.dot(point1, point2))
+    thetas = np.linspace(0, sum_theta, npoints)
+    points_of_bridge = []
+    for theta in thetas:
+        point1_trimesh = trimesh.PointCloud([point1])
+        rotation_matrix = trimesh.transformations.rotation_matrix(angle=theta,
+                                                                  direction=axis_of_rotation,
+                                                                  point=[0, 0, 0])
+        point1_trimesh.apply_transform(rotation_matrix)
+        point_here = np.array(point1_trimesh.vertices[0])
+        points_of_bridge.append(point_here)
+    return np.array(points_of_bridge)
