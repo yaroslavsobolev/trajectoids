@@ -4,6 +4,31 @@ import trimesh
 import matplotlib.pyplot as plt
 from skimage import io
 from mayavi import mlab
+from math import atan2
+
+def signed_angle_between_2d_vectors(vector1, vector2):
+    """Calculate the signed angle between two 2-dimensional vectors using the atan2 formula.
+    The angle is positive if rotation from vector1 to vector2 is counterclockwise, and negative
+    of the rotation is clockwise.
+
+    This is more numerically stable for angles close to 0 or pi than the acos() formula.
+    """
+    # make sure that vectors are 2d
+    assert vector1.shape == (2, )
+    assert vector2.shape == (2, )
+    # Convert to 3D for making cross product
+    vector1_ = np.append(vector1, 0)
+    vector2_ = np.append(vector2, 0)
+    return atan2(np.cross(vector1_, vector2_)[-1], np.dot(vector1_, vector2_))
+
+def angle_between_vectors(vector1, vector2):
+    """Calculate the signed angle between two 2-dimensional vectors using the atan2 formula.
+    The angle is positive if rotation from vector1 to vector2 is counterclockwise, and negative
+    of the rotation is clockwise.
+
+    This is more numerically stable for angles close to 0 or pi than the acos() formula.
+    """
+    return atan2(np.linalg.norm(np.cross(vector1, vector2)), np.dot(vector1, vector2))
 
 def get_trajectory_from_raster_image(filename, do_plotting=True):
     image = io.imread(filename)[:,:,0]
@@ -199,6 +224,8 @@ def bridge_two_points_by_arc(point1, point2, npoints = 10):
     # make sure that the lengths of input vectors are equal to unity
     for point in [point1, point2]:
         assert np.isclose(np.linalg.norm(point), 1)
+    # Find the single turn that brings point 1 into point 2 and split this turn into many small turns.
+    # Each small turn gives a new intermediate point. Total number of small turns is equal to npoints.
     axis_of_rotation = np.cross(point1, point2)
     sum_theta = np.arccos(np.dot(point1, point2))
     thetas = np.linspace(0, sum_theta, npoints)

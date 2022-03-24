@@ -3,9 +3,8 @@ import numpy as np
 from compute_trajectoid import *
 
 def test_path_from_trace():
-    # we convert path to spherical trace and back, then make sure we got the same path back
-
-    # make a path that is just a single zigzag like so: /\
+    '''we convert path to spherical trace and back, then make sure we got the same path back'''
+    # Make a path that is just a single zigzag like so: /\
     # TODO: Test more complex input paths as well for completeness
     Npath = 400
     factor = 0.2
@@ -41,4 +40,11 @@ def test_single_arc_bridging(do_plot=False):
             mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.1, color=(0,0,1))
         mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.1, color=(0, 1, 0))
         mlab.show()
+
+# def test_angular_bridging():
+# test angular bridging
+
+# make_angle_bridge(declination_from_tangents, max_declination_from_gravity)
+print(signed_angle_between_2d_vectors(np.array([1, 0]),
+                         np.array([-0.5, -1])))
 
