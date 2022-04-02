@@ -9,7 +9,7 @@ from math import atan2
 def signed_angle_between_2d_vectors(vector1, vector2):
     """Calculate the signed angle between two 2-dimensional vectors using the atan2 formula.
     The angle is positive if rotation from vector1 to vector2 is counterclockwise, and negative
-    of the rotation is clockwise.
+    of the rotation is clockwise. Angle is in radians.
 
     This is more numerically stable for angles close to 0 or pi than the acos() formula.
     """
@@ -21,14 +21,31 @@ def signed_angle_between_2d_vectors(vector1, vector2):
     vector2_ = np.append(vector2, 0)
     return atan2(np.cross(vector1_, vector2_)[-1], np.dot(vector1_, vector2_))
 
-def angle_between_vectors(vector1, vector2):
-    """Calculate the signed angle between two 2-dimensional vectors using the atan2 formula.
-    The angle is positive if rotation from vector1 to vector2 is counterclockwise, and negative
-    of the rotation is clockwise.
+def unsigned_angle_between_vectors(vector1, vector2):
+    """Calculate the unsigned angle between two n-dimensional vectors using the atan2 formula.
+    Angle is in radians.
 
     This is more numerically stable for angles close to 0 or pi than the acos() formula.
     """
     return atan2(np.linalg.norm(np.cross(vector1, vector2)), np.dot(vector1, vector2))
+
+def rotate_2d(vector, angle):
+        """
+        Rotate a point counterclockwise by a given angle around a given origin.
+
+        The angle should be given in radians.
+        """
+        ox, oy = (0, 0)
+        px, py = vector
+
+        qx = ox + np.cos(angle) * (px - ox) - np.sin(angle) * (py - oy)
+        qy = oy + np.sin(angle) * (px - ox) + np.cos(angle) * (py - oy)
+        return np.array([qx, qy])
+
+# def rotate_2d_by_matrix(vector, theta):
+#     c, s = np.cos(theta), np.sin(theta)
+#     R = np.array(((c, -s), (s, c)))
+#     return
 
 def get_trajectory_from_raster_image(filename, do_plotting=True):
     image = io.imread(filename)[:,:,0]

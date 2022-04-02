@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 
 from compute_trajectoid import *
@@ -45,6 +46,44 @@ def test_single_arc_bridging(do_plot=False):
 # test angular bridging
 
 # make_angle_bridge(declination_from_tangents, max_declination_from_gravity)
-print(signed_angle_between_2d_vectors(np.array([1, 0]),
-                         np.array([-0.5, -1])))
+def test_angle_between_vectors():
+    assert np.isclose(signed_angle_between_2d_vectors(np.array([1, 0]), np.array([-0.5, -1])),
+                      -2.0344439357957027)
+
+# Make a path that is just a single zigzag like so: /\
+# TODO: Test more complex input paths as well for completeness
+Npath = 400
+factor = 1
+factor2 = 0.8
+xs = np.linspace(0, 2*np.pi*factor2, Npath)
+ys = xs*factor
+middle = int(round(Npath/2))
+ys[middle:] = factor*np.flip(xs)[middle:]
+input_path = np.stack((xs, ys)).T
+
+def filter_backward_declination(declination_angle, input_path, maximum_angle_from_vertical = np.pi/180*80):
+    tangent_backward = input_path[0] - input_path[1]
+    angle0 = signed_angle_between_2d_vectors(np.array([-1, 0]), tangent_backward)
+
+    candidate_direction_backward = rotate_2d(tangent_backward, declination_angle)
+    a = signed_angle_between_2d_vectors(tangent_backward, candidate_direction_backward)
+    assert np.isclose(a, declination_angle)
+
+    # if angle exceeds the highest allowed angle with vertical direction, use the highest allowed angle instead
+    angle_from_vertical = signed_angle_between_2d_vectors(np.array([-1, 0]), candidate_direction_backward)
+    if np.abs(angle_from_vertical) >= maximum_angle_from_vertical:
+        declination_angle = maximum_angle_from_vertical * np.sign(angle_from_vertical) - angle0
+    return declination_angle
+
+for declination_angle in np.linspace(-np.pi, np.pi, 100):
+    plt.scatter(declination_angle, filter_backward_declination(declination_angle, input_path),
+                alpha=0.5)
+plt.axvline(x=signed_angle_between_2d_vectors(np.array([-1, 0]), input_path[0] - input_path[1]))
+# for v in [tangent_backward, candidate_direction_backward, np.array([-1, 0])]:
+#     w = v/np.linalg.norm(v)
+#     plt.scatter(w[0], w[1])
+plt.axis('equal')
+plt.show()
+print(1)
+
 
