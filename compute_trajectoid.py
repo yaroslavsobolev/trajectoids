@@ -256,3 +256,45 @@ def bridge_two_points_by_arc(point1, point2, npoints = 10):
         point_here = np.array(point1_trimesh.vertices[0])
         points_of_bridge.append(point_here)
     return np.array(points_of_bridge)
+
+def filter_backward_declination(declination_angle, input_path, maximum_angle_from_vertical = np.pi/180*80):
+    tangent_backward = input_path[0] - input_path[1]
+    angle0 = signed_angle_between_2d_vectors(np.array([-1, 0]), tangent_backward)
+
+    candidate_direction_backward = rotate_2d(tangent_backward, declination_angle)
+    a = signed_angle_between_2d_vectors(tangent_backward, candidate_direction_backward)
+    assert np.isclose(a, declination_angle)
+
+    # if angle exceeds the highest allowed angle with vertical direction, use the highest allowed angle instead
+    angle_from_vertical = signed_angle_between_2d_vectors(np.array([-1, 0]), candidate_direction_backward)
+    if np.abs(angle_from_vertical) >= maximum_angle_from_vertical:
+        declination_angle = maximum_angle_from_vertical * np.sign(angle_from_vertical) - angle0
+    return declination_angle
+
+def filter_forward_declination(declination_angle, input_path, maximum_angle_from_vertical = np.pi/180*80):
+    tangent_forward = input_path[-1] - input_path[-2]
+    angle0 = signed_angle_between_2d_vectors(np.array([1, 0]), tangent_forward)
+
+    candidate_direction_forward = rotate_2d(tangent_forward, declination_angle)
+    a = signed_angle_between_2d_vectors(tangent_forward, candidate_direction_forward)
+    assert np.isclose(a, declination_angle)
+
+    # if angle exceeds the highest allowed angle with vertical direction, use the highest allowed angle instead
+    angle_from_vertical = signed_angle_between_2d_vectors(np.array([1, 0]), candidate_direction_forward)
+    if np.abs(angle_from_vertical) >= maximum_angle_from_vertical:
+        declination_angle = maximum_angle_from_vertical * np.sign(angle_from_vertical) - angle0
+    return declination_angle
+
+def make_corner_bridge_candidate(input_declination_angle, input_path):
+    # Overall plan:
+    # 1. forward declined section
+    #       1.1. Filter forward declination angle -- make sure it's not too deflected from the downward direction
+    #           (gravity projection)
+    #       1.2. Make an forward arc
+    # 2. Backward declined section
+    #       2.1. Filter backward declination angle
+    #       2.2. Check that backward arc and forward arc are in the same hemosphere. If not, multiply the backward angle
+    #            by (-1) and use the new backward angle instead.
+    # 3. Find the intersection of backward and forward arc. There are two intersection. You need the one that is in the
+    #    same hemisphere as the infinitely small starting sections of that arc.
+    return True
