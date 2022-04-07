@@ -42,6 +42,14 @@ def rotate_2d(vector, angle):
         qy = oy + np.sin(angle) * (px - ox) + np.cos(angle) * (py - oy)
         return np.array([qx, qy])
 
+def rotate_3d_vector(input_vector, axis_of_rotation, angle):
+        point1_trimesh = trimesh.PointCloud([input_vector])
+        rotation_matrix = trimesh.transformations.rotation_matrix(angle=angle,
+                                                                  direction=axis_of_rotation,
+                                                                  point=[0, 0, 0])
+        point1_trimesh.apply_transform(rotation_matrix)
+        return np.array(point1_trimesh.vertices[0])
+
 # def rotate_2d_by_matrix(vector, theta):
 #     c, s = np.cos(theta), np.sin(theta)
 #     R = np.array(((c, -s), (s, c)))
@@ -285,7 +293,7 @@ def filter_forward_declination(declination_angle, input_path, maximum_angle_from
         declination_angle = maximum_angle_from_vertical * np.sign(angle_from_vertical) - angle0
     return declination_angle
 
-def make_corner_bridge_candidate(input_declination_angle, input_path):
+def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, do_plot = True):
     # Overall plan:
     # 1. forward declined section
     #       1.1. Filter forward declination angle -- make sure it's not too deflected from the downward direction
@@ -297,4 +305,84 @@ def make_corner_bridge_candidate(input_declination_angle, input_path):
     #            by (-1) and use the new backward angle instead.
     # 3. Find the intersection of backward and forward arc. There are two intersection. You need the one that is in the
     #    same hemisphere as the infinitely small starting sections of that arc.
-    return True
+
+    sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
+    # forward arc
+    axis_at_last_point = np.cross(sphere_trace[-2], sphere_trace[-1])
+    forward_declination_angle = filter_forward_declination(input_declination_angle, input_path)
+    forward_arc_axis = rotate_3d_vector(axis_at_last_point, sphere_trace[-1], forward_declination_angle)
+    small_angle = np.pi / 18
+    small_forward_arc = rotate_3d_vector(sphere_trace[-1], forward_arc_axis, small_angle)
+
+    # if do_plot:
+    #     core_radius = 1
+    #     mlab.figure(size=(1024, 768), \
+    #                 bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+    #     tube_radius = 0.01
+    #     plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+    #     l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+    #                     tube_radius=tube_radius)
+        # for point_here in [small_forward_arc]:
+        #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.1, color=(0, 1, 0))
+
+    def get_backward_arc_axis(input_declination_angle, input_path, sphere_trace):
+        axis_at_first_point = np.cross(sphere_trace[0], sphere_trace[1])
+        backward_declination_angle = filter_backward_declination(input_declination_angle, input_path)
+        # print('Backward_an')
+        backward_arc_axis = rotate_3d_vector(axis_at_first_point, sphere_trace[0], backward_declination_angle)
+        return backward_arc_axis
+
+    backward_arc_axis = get_backward_arc_axis(input_declination_angle, input_path, sphere_trace)
+    small_backward_arc = rotate_3d_vector(sphere_trace[0], backward_arc_axis, -1*small_angle)
+    # check whether the forward and backward small arcs are on the same hemisphere with respect to the plane
+    # passing through the sphere center and the line connecting the last point and first point
+    reference_plane_normal = np.cross(sphere_trace[-1], sphere_trace[0])
+    forward_sign = np.dot(small_forward_arc - sphere_trace[-1], reference_plane_normal)
+    backward_sign = np.dot(small_backward_arc - sphere_trace[0], reference_plane_normal)
+    # if they are not on the same side, then use opposite declination for backward arc
+    if forward_sign * backward_sign < 0:
+        backward_arc_axis = get_backward_arc_axis(-1*input_declination_angle, input_path, sphere_trace)
+        small_backward_arc = rotate_3d_vector(sphere_trace[0], backward_arc_axis, -1 * small_angle)
+
+    # if do_plot:
+    #     for point_here in [small_backward_arc]:
+    #         mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.1, color=(1, 0, 0))
+
+    # find intersection between the forward arc and the backward arc; intersection of interest lies in the same
+    # hemisphere as the small arcs
+    intersection = np.cross(forward_arc_axis, backward_arc_axis)
+    intersection = intersection / np.linalg.norm(intersection)
+    if np.dot(intersection, reference_plane_normal) * forward_sign < 0:
+        intersection = -1*intersection
+
+    # if do_plot:
+    #     for point_here in [intersection]:
+    #         mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.1, color=(1, 1, 0))
+
+    forward_full_arc = bridge_two_points_by_arc(sphere_trace[-1], intersection, npoints=npoints)
+    backward_full_arc = bridge_two_points_by_arc(intersection, sphere_trace[0], npoints=npoints)
+    if do_plot:
+        tube_radius = 0.01
+        for curve in [forward_full_arc, backward_full_arc]:
+            mlab.plot3d(curve[:, 0], curve[:, 1], curve[:, 2], color=(0, 1, 0),
+                        tube_radius=tube_radius)
+
+    full_bridge = np.concatenate((forward_full_arc[1:], backward_full_arc[1:]), axis=0)
+    trace_width_bridge = np.concatenate((sphere_trace, full_bridge), axis=0)
+    input_path_with_bridge = path_from_trace(trace_width_bridge)
+    return input_path_with_bridge
+
+def mismatch_angle_for_path(input_path):
+    rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(
+        rotation_to_origin(input_path.shape[0] - 1, input_path))
+    angle = rotation_of_entire_traj[0]
+    return angle
+
+def mismatch_angle_fof_bridge(declination_angle, input_path, npoints=30):
+    path_with_bridge = make_corner_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False)
+    angle = mismatch_angle_for_path(path_with_bridge)
+    return angle
+
+
+    # if do_plot:
+    #     mlab.show()

@@ -82,3 +82,34 @@ def test_filtering_of_backward_declination_angles(do_plot=False):
         plt.axvline(x=-1*maximum_angle_from_vertical, color='green')
         plt.axis('equal')
         plt.show()
+
+do_plot = False
+input_path = make_zigzag_path(Npath = 150, factor = 0.05, factor2=0.70)
+sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
+if do_plot:
+    core_radius = 1
+    mlab.figure(size=(1024, 768), \
+                bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+    tube_radius = 0.01
+    plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+                    tube_radius=tube_radius)
+    mlab.show()
+
+# declination_angles = np.linspace(-np.pi, np.pi, 100)
+# declination_angle = np.pi/2
+# full_bridge = make_corner_bridge_candidate(declination_angle, input_path, npoints=30)
+
+declination_angles = np.linspace(-np.pi/2, np.pi/2, 13)
+
+mismatches = []
+print('start')
+for declination_angle in declination_angles:
+    mismatches.append(mismatch_angle_fof_bridge(declination_angle, input_path, npoints=30))
+    print('done')
+
+plt.plot(declination_angles, mismatches, 'o-')
+plt.show()
+
+if do_plot:
+    mlab.show()
