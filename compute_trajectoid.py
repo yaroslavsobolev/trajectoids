@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from skimage import io
 from mayavi import mlab
 from math import atan2
+from scipy.optimize import fsolve
+
 
 def signed_angle_between_2d_vectors(vector1, vector2):
     """Calculate the signed angle between two 2-dimensional vectors using the atan2 formula.
@@ -17,8 +19,8 @@ def signed_angle_between_2d_vectors(vector1, vector2):
     assert vector1.shape == (2, )
     assert vector2.shape == (2, )
     # Convert to 3D for making cross product
-    vector1_ = np.append(vector1, 0)
-    vector2_ = np.append(vector2, 0)
+    vector1_ = np.append(vector1, 0)/np.linalg.norm(vector1)
+    vector2_ = np.append(vector2, 0)/np.linalg.norm(vector2)
     return atan2(np.cross(vector1_, vector2_)[-1], np.dot(vector1_, vector2_))
 
 def unsigned_angle_between_vectors(vector1, vector2):
@@ -383,6 +385,20 @@ def mismatch_angle_fof_bridge(declination_angle, input_path, npoints=30):
     angle = mismatch_angle_for_path(path_with_bridge)
     return angle
 
-
-    # if do_plot:
-    #     mlab.show()
+def find_best_bridge(input_path, npoints=30, do_plot=True):
+    declination_angles = np.linspace(-np.pi * 0.75, np.pi * 0.75, 13)
+    mismatches = []
+    for i, declination_angle in enumerate(declination_angles):
+        mismatches.append(mismatch_angle_fof_bridge(declination_angle, input_path, npoints=30))
+        print(f'Preliminary screening, step {i} completed')
+    initial_guess = declination_angles[np.argmin(np.abs(np.array(mismatches)))]
+    print(f'Initial guess: {initial_guess}')
+    if do_plot:
+        plt.plot(declination_angles, mismatches, 'o-')
+        plt.show()
+    def left_hand_side(x): # the function whose root we want to find
+        return np.array([mismatch_angle_fof_bridge(s, input_path, npoints=30) for s in x])
+    best_declination = fsolve(left_hand_side, initial_guess, maxfev=20)
+    print(f'Best declination: {best_declination}')
+    print(f'Best mismatch: {left_hand_side(best_declination)}')
+    return best_declination[0]

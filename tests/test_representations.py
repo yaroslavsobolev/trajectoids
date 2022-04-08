@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import savgol_filter
 
 from compute_trajectoid import *
 
@@ -83,9 +84,26 @@ def test_filtering_of_backward_declination_angles(do_plot=False):
         plt.axis('equal')
         plt.show()
 
-do_plot = False
-input_path = make_zigzag_path(Npath = 150, factor = 0.05, factor2=0.70)
-sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
+
+## ================================================
+
+
+do_plot = True
+# input_path_0 = make_zigzag_path(Npath = 150, factor = 0.2, factor2=0.8)
+
+Npath = 150
+factor = 4
+factor2 = 0.7
+np.random.seed(0)
+xs = np.linspace(0, 2 * np.pi * factor2, Npath)
+ys = np.random.rand(Npath)
+ys = savgol_filter(factor*ys, 31, 3)
+ys = savgol_filter(ys, 7, 1)
+ys[1] = ys[0]
+ys[-1] = ys[-2]
+input_path_0 =  np.stack((xs, ys)).T
+
+sphere_trace = trace_on_sphere(input_path_0, kx=1, ky=1)
 if do_plot:
     core_radius = 1
     mlab.figure(size=(1024, 768), \
@@ -96,20 +114,41 @@ if do_plot:
                     tube_radius=tube_radius)
     mlab.show()
 
+npoints = 30
+netscale = 1
+input_path = netscale*input_path_0
+best_declination_angle = find_best_bridge(input_path, npoints=npoints)
+path_with_bridge = make_corner_bridge_candidate(best_declination_angle, input_path, npoints=npoints, do_plot=False)
+# plot results
+fig, ax = plt.subplots(figsize=(8, 2))
+path = path_with_bridge
+plt.plot(path[:, 0], path[:, 1], '-', alpha=1, color='black', linewidth=2)
+plt.plot(path[:-(2*npoints-2), 0], path[:-(2*npoints-2), 1], '-', alpha=1, color='C1', linewidth=2)
+plt.plot(path[:, 0] - path[-1, 0], path[:, 1] - path[-1, 1] + path[0, 1], '-', alpha=0.3, color='black', linewidth=2)
+plt.plot(path[:-(2*npoints-2), 0] - path[-1, 0], path[:-(2*npoints-2), 1] - path[-1, 1] + path[0, 1], '-', alpha=0.3, color='C1', linewidth=2)
+plt.plot(path[:, 0] + path[-1, 0], path[:, 1] - path[0, 1] + path[-1, 1], '-', alpha=0.3, color='black', linewidth=2)
+plt.plot(path[:-(2*npoints-2), 0] + path[-1, 0], path[:-(2*npoints-2), 1] - path[0, 1] + path[-1, 1], '-', alpha=0.3, color='C1', linewidth=2)
+plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], alpha=1, color='black')
+
+plt.axis('equal')
+ax.axis('off')
+plt.show()
+
+
 # declination_angles = np.linspace(-np.pi, np.pi, 100)
 # declination_angle = np.pi/2
 # full_bridge = make_corner_bridge_candidate(declination_angle, input_path, npoints=30)
 
-declination_angles = np.linspace(-np.pi/2, np.pi/2, 13)
-
-mismatches = []
-print('start')
-for declination_angle in declination_angles:
-    mismatches.append(mismatch_angle_fof_bridge(declination_angle, input_path, npoints=30))
-    print('done')
-
-plt.plot(declination_angles, mismatches, 'o-')
-plt.show()
+# declination_angles = np.linspace(-np.pi/2, np.pi/2, 13)
+#
+# mismatches = []
+# print('start')
+# for declination_angle in declination_angles:
+#     mismatches.append(mismatch_angle_fof_bridge(declination_angle, input_path, npoints=30))
+#     print('done')
+#
+# plt.plot(declination_angles, mismatches, 'o-')
+# plt.show()
 
 if do_plot:
     mlab.show()
