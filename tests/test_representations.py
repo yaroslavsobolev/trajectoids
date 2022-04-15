@@ -228,6 +228,10 @@ if do_plot:
 npoints = 30
 netscale = 1
 input_path = netscale*input_path_0
+
+# declination_angle = 0.64
+# path_with_bridge = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=True)
+
 best_declination_angle = find_best_smooth_bridge(input_path, npoints=npoints)
 path_with_bridge = make_smooth_bridge_candidate(best_declination_angle, input_path, npoints=npoints, do_plot=True)
 # plot results
