@@ -6,7 +6,17 @@ from skimage import io
 from mayavi import mlab
 from math import atan2
 from scipy.optimize import fsolve
+from sklearn.metrics import pairwise_distances
 
+def better_mayavi_lights(fig):
+    azims = [60, -60, 60, -60]
+    elevs = [-30, -30, 30, 30]
+    fig.scene._lift()
+    for i, camera_light0 in enumerate(fig.scene.light_manager.lights):
+        camera_light0.elevation = elevs[i]
+        camera_light0.azimuth = azims[i]
+        camera_light0.intensity = 0.5
+        camera_light0.activate = True
 
 def signed_angle_between_2d_vectors(vector1, vector2):
     """Calculate the signed angle between two 2-dimensional vectors using the atan2 formula.
@@ -286,6 +296,7 @@ def filter_forward_declination(declination_angle, input_path, maximum_angle_from
     angle0 = signed_angle_between_2d_vectors(np.array([1, 0]), tangent_forward)
 
     candidate_direction_forward = rotate_2d(tangent_forward, declination_angle)
+    print(tangent_forward)
     a = signed_angle_between_2d_vectors(tangent_forward, candidate_direction_forward)
     assert np.isclose(a, declination_angle)
 
@@ -380,8 +391,13 @@ def mismatch_angle_for_path(input_path):
     angle = rotation_of_entire_traj[0]
     return angle
 
-def mismatch_angle_fof_bridge(declination_angle, input_path, npoints=30):
+def mismatch_angle_for_bridge(declination_angle, input_path, npoints=30):
     path_with_bridge = make_corner_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False)
+    angle = mismatch_angle_for_path(path_with_bridge)
+    return angle
+
+def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30):
+    path_with_bridge = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False)
     angle = mismatch_angle_for_path(path_with_bridge)
     return angle
 
@@ -389,7 +405,7 @@ def find_best_bridge(input_path, npoints=30, do_plot=True):
     declination_angles = np.linspace(-np.pi * 0.75, np.pi * 0.75, 13)
     mismatches = []
     for i, declination_angle in enumerate(declination_angles):
-        mismatches.append(mismatch_angle_fof_bridge(declination_angle, input_path, npoints=30))
+        mismatches.append(mismatch_angle_for_bridge(declination_angle, input_path, npoints=30))
         print(f'Preliminary screening, step {i} completed')
     initial_guess = declination_angles[np.argmin(np.abs(np.array(mismatches)))]
     print(f'Initial guess: {initial_guess}')
@@ -397,8 +413,192 @@ def find_best_bridge(input_path, npoints=30, do_plot=True):
         plt.plot(declination_angles, mismatches, 'o-')
         plt.show()
     def left_hand_side(x): # the function whose root we want to find
-        return np.array([mismatch_angle_fof_bridge(s, input_path, npoints=30) for s in x])
+        return np.array([mismatch_angle_for_bridge(s, input_path, npoints=30) for s in x])
     best_declination = fsolve(left_hand_side, initial_guess, maxfev=20)
     print(f'Best declination: {best_declination}')
     print(f'Best mismatch: {left_hand_side(best_declination)}')
     return best_declination[0]
+
+def find_best_smooth_bridge(input_path, npoints=30, do_plot=True):
+    declination_angles = np.linspace(-np.pi * 0.75, np.pi * 0.75, 12)
+    mismatches = []
+    for i, declination_angle in enumerate(declination_angles):
+        mismatches.append(mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30))
+        print(f'Preliminary screening, step {i} completed')
+    initial_guess = declination_angles[np.argmin(np.abs(np.array(mismatches)))]
+    print(f'Initial guess: {initial_guess}')
+    if do_plot:
+        plt.plot(declination_angles, mismatches, 'o-')
+        plt.show()
+    def left_hand_side(x): # the function whose root we want to find
+        print(f'Sampling function at x={x}')
+        return np.array([mismatch_angle_for_bridge(s, input_path, npoints=30) for s in x])
+    best_declination = fsolve(left_hand_side, initial_guess, maxfev=20)
+    print(f'Best declination: {best_declination}')
+    print(f'Best mismatch: {left_hand_side(best_declination)}')
+    return best_declination[0]
+
+
+def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.2, do_plot = True):
+    # forward smooth deflection section is a semicircle made by slowly rotating tangent with a given curvature radius
+    #   until the total accumulated angle (in plane) is equal to the input deflection angle
+    # Backward deflection section is created similarly.
+    # Deflection sections are extended by geodesic sections. These geodesics are then joined by smooth semicircle,
+    #   instead o the direct intesections (as it is in the "corner bridge" implementation).
+    sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
+    # forward arc
+    axis_at_last_point = np.cross(sphere_trace[-2], sphere_trace[-1])
+    forward_declination_angle = filter_forward_declination(input_declination_angle, input_path)
+    print(f'Forward angle -- raw={input_declination_angle}, filtered={forward_declination_angle}')
+    turn_angle_increment = forward_declination_angle/npoints
+    geodesic_length_of_single_step = np.abs(min_curvature_radius * forward_declination_angle/npoints)
+    point_here = np.copy(sphere_trace[-1])
+    forward_arc_points = [point_here]
+    for i in range(npoints):
+        next_axis = rotate_3d_vector(axis_at_last_point, point_here, turn_angle_increment)
+        next_point = rotate_3d_vector(point_here, next_axis, geodesic_length_of_single_step)
+        forward_arc_points.append(next_point)
+        axis_at_last_point = np.copy(next_axis)
+        point_here = np.copy(next_point)
+    forward_arc_points = np.array(forward_arc_points)
+
+    def get_backward_arc(input_declination_angle, input_path, sphere_trace):
+        axis_at_last_point = np.cross(sphere_trace[0], sphere_trace[1])
+        backward_declination_angle = filter_backward_declination(input_declination_angle, input_path)
+        print(f'Forward angle -- raw={input_declination_angle}, filtered={backward_declination_angle}')
+        turn_angle_increment = backward_declination_angle/npoints
+        geodesic_length_of_single_step = np.abs(min_curvature_radius * backward_declination_angle/npoints)
+        point_here = np.copy(sphere_trace[0])
+        backward_arc_points = [point_here]
+        for i in range(npoints):
+            next_axis = rotate_3d_vector(axis_at_last_point, point_here, -1*turn_angle_increment)
+            next_point = rotate_3d_vector(point_here, next_axis, -1*geodesic_length_of_single_step)
+            backward_arc_points.append(next_point)
+            axis_at_last_point = np.copy(next_axis)
+            point_here = np.copy(next_point)
+        backward_arc_points = np.array(backward_arc_points)
+        return backward_arc_points
+
+    # make sure that they are on the same side
+    backward_arc_points = get_backward_arc(input_declination_angle, input_path, sphere_trace)
+    reference_plane_normal = np.cross(sphere_trace[-1], sphere_trace[0])
+    forward_sign = np.dot(forward_arc_points[-1] - sphere_trace[-1], reference_plane_normal)
+    backward_sign = np.dot(backward_arc_points[-1] - sphere_trace[0], reference_plane_normal)
+    # if they are not on the same side, then use opposite declination for backward arc
+    if forward_sign * backward_sign < 0:
+        backward_arc_points = get_backward_arc(-1*input_declination_angle, input_path, sphere_trace)
+
+    pd = pairwise_distances(forward_arc_points, backward_arc_points)
+    if np.min(pd) < 2*geodesic_length_of_single_step:
+        print('Intersection of forward and backward arcs. Escaping.')
+        res = input_path
+    else:
+        # Find the intersection point of the straight segments
+        forward_straight_section_axis = np.cross(forward_arc_points[-2], forward_arc_points[-1])
+        backward_straight_section_axis = np.cross(backward_arc_points[-2], backward_arc_points[-1])
+        intersection = np.cross(forward_straight_section_axis, backward_straight_section_axis)
+        intersection = intersection / np.linalg.norm(intersection)
+        # make sure that the intersection is on the proper side of the plane passing through the line connecting
+        #   two ends of input path and (0, 0, 0)
+        sign_marker = 1
+        if np.dot(intersection, reference_plane_normal) * forward_sign < 0:
+            intersection = -1*intersection
+            sign_marker = -1
+        geodesic_length_from_intersection_to_forward_arc = unsigned_angle_between_vectors(intersection,
+                                                                                          forward_arc_points[-1])
+        geodesic_length_from_intersection_to_backward_arc = unsigned_angle_between_vectors(intersection,
+                                                                                          backward_arc_points[-1])
+        angle_at_intersection = unsigned_angle_between_vectors(forward_straight_section_axis, backward_straight_section_axis)
+        # if angle_at_intersection > np.pi/2:
+        #     angle_at_intersection = np.pi - angle_at_intersection
+        geodesic_length_from_intersection_to_tangent_of_main_arc = min_curvature_radius / np.tan(angle_at_intersection/2)
+        forward_straight_section_length = geodesic_length_from_intersection_to_forward_arc - \
+                                          geodesic_length_from_intersection_to_tangent_of_main_arc
+        backward_straight_section_length = geodesic_length_from_intersection_to_backward_arc - \
+                                          geodesic_length_from_intersection_to_tangent_of_main_arc
+        if (forward_straight_section_length <= 0) or (backward_straight_section_length <= 0):
+            print('Impossible to make main arc: intersection too close. Escaping')
+            res = input_path
+        else:
+            forward_straight_section_points = bridge_two_points_by_arc(forward_arc_points[-1],
+                                                                       rotate_3d_vector(forward_arc_points[-1],
+                                                                                        forward_straight_section_axis,
+                                                                                        forward_straight_section_length),
+                                                                       npoints=npoints)
+            backward_straight_section_points = bridge_two_points_by_arc(backward_arc_points[-1],
+                                                                       rotate_3d_vector(backward_arc_points[-1],
+                                                                                        backward_straight_section_axis,
+                                                                                        backward_straight_section_length),
+                                                                       npoints=npoints)
+            # # make main arc
+            # def make_main_arc(full_angle_to_turn = (np.pi - angle_at_intersection)):
+            #     axis_at_last_point = forward_straight_section_axis
+            #     turn_angle_increment = full_angle_to_turn/(npoints-1)
+            #     geodesic_length_of_single_step = np.abs(min_curvature_radius * full_angle_to_turn/(npoints-1))
+            #     # geodesic_length_of_single_step = 2 * min_curvature_radius * np.sin(turn_angle_increment/2)
+            #     # geodesic_length_of_single_step = np.abs(min_curvature_radius * (np.pi - angle_at_intersection)/npoints)
+            #     point_here = forward_straight_section_points[-1]
+            #     main_arc_points = [point_here]
+            #     for i in range(npoints):
+            #         next_axis = rotate_3d_vector(axis_at_last_point, point_here, -1 * sign_marker * turn_angle_increment)
+            #         next_point = rotate_3d_vector(point_here, next_axis, geodesic_length_of_single_step) # 2*np.arcsin(geodesic_length_of_single_step/2)
+            #         main_arc_points.append(next_point)
+            #         axis_at_last_point = np.copy(next_axis)
+            #         point_here = np.copy(next_point)
+            #     return np.array(main_arc_points)
+            # main_arc_points = make_main_arc()
+
+            # main arc, version 2
+            main_arc_radius = np.sqrt(1 / (1 + (1/min_curvature_radius)**2))
+            # Find center of main arc circle
+            aa = np.cross(forward_straight_section_points[-1], forward_straight_section_axis)
+            bb = np.cross(backward_straight_section_points[-1], backward_straight_section_axis)
+            main_arc_center = sign_marker * np.cross(aa, bb)
+            main_arc_center = main_arc_center/np.linalg.norm(main_arc_center) * np.sqrt(1 - main_arc_radius**2)
+            def make_main_arc():
+                start = forward_straight_section_points[-1] - main_arc_center
+                end = backward_straight_section_points[-1] - main_arc_center
+                startlen = np.linalg.norm(start)
+                endlen = np.linalg.norm(end)
+                # assert np.isclose(np.linalg.norm(start), main_arc_radius)
+                # assert np.isclose(np.linalg.norm(end), main_arc_radius)
+                full_turn_angle = -1*sign_marker*unsigned_angle_between_vectors(start, end)
+                full_turn_angle = -1 * sign_marker * np.arccos(np.dot(start, end)/np.linalg.norm(start)/np.linalg.norm(end))
+                main_arc_points = []
+                thetas = np.linspace(0, full_turn_angle, npoints)
+                for theta in thetas:
+                    main_arc_points.append(main_arc_center + rotate_3d_vector(start, main_arc_center/np.linalg.norm(main_arc_center), theta))
+                return np.array(main_arc_points)
+            main_arc_points = make_main_arc()
+
+            backward_straight_section_points = backward_straight_section_points[::-1]
+            backward_arc_points = backward_arc_points[::-1]
+            if do_plot:
+                core_radius = 1
+                mlab.figure(size=(1024, 768), \
+                            bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+                tube_radius = 0.01
+                plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+                l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+                                tube_radius=tube_radius, opacity=0.5)
+                for piece_of_bridge in [forward_arc_points, backward_arc_points]:
+                    p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=(0, 1, 0),
+                                    tube_radius=tube_radius, opacity=0.5)
+                for piece_of_bridge in [forward_straight_section_points, backward_straight_section_points]:
+                    p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=(1, 0, 0),
+                                    tube_radius=tube_radius, opacity=0.5)
+                for piece_of_bridge in [main_arc_points]:
+                    p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=(0, 1, 0),
+                                    tube_radius=tube_radius, opacity=0.5)
+                # for point_here in [backward_arc_points[0]]:
+                #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
+                mlab.show()
+            trace_with_bridge = np.concatenate((sphere_trace,
+                                  forward_arc_points[1:],
+                                  forward_straight_section_points[1:],
+                                  main_arc_points[1:],
+                                  backward_straight_section_points[1:],
+                                  backward_arc_points[1:-1]),
+                                 axis=0)
+            res = path_from_trace(trace_with_bridge)
+    return res
