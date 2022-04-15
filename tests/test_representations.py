@@ -203,15 +203,15 @@ do_plot = True
 # input_path_0 = make_zigzag_path(Npath = 150, factor = 0.1, factor2=0.8)
 
 Npath = 150
-factor = 3
+factor = 0.7
 factor2 = 0.8
 np.random.seed(1)
 xs = np.linspace(0, 2 * np.pi * factor2, Npath)
 ys = np.random.rand(Npath)
 ys = savgol_filter(factor*ys, 31, 3)
 ys = savgol_filter(ys, 7, 1)
-ys[1] = ys[0]
-ys[-1] = ys[-2]
+# ys[1] = ys[0]
+# ys[-1] = ys[-2]
 input_path_0 =  np.stack((xs, ys)).T
 
 sphere_trace = trace_on_sphere(input_path_0, kx=1, ky=1)
@@ -233,7 +233,7 @@ input_path = netscale*input_path_0
 # path_with_bridge = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=True)
 
 best_declination_angle = find_best_smooth_bridge(input_path, npoints=npoints)
-path_with_bridge = make_smooth_bridge_candidate(best_declination_angle, input_path, npoints=npoints, do_plot=True)
+path_with_bridge, is_successful = make_smooth_bridge_candidate(best_declination_angle, input_path, npoints=npoints, do_plot=True)
 # plot results
 fig, ax = plt.subplots(figsize=(8, 2))
 path = path_with_bridge

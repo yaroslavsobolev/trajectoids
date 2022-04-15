@@ -5,8 +5,14 @@ import matplotlib.pyplot as plt
 from skimage import io
 from mayavi import mlab
 from math import atan2
-from scipy.optimize import fsolve
+from scipy.optimize import fsolve, brentq
+from scipy import interpolate
 from sklearn.metrics import pairwise_distances
+
+def split_by_mask(signal, input_mask):
+    mask = np.concatenate(([False], input_mask, [False] ))
+    idx = np.flatnonzero(mask[1:] != mask[:-1])
+    return [signal[idx[i]:idx[i+1]] for i in range(0,len(idx),2)]
 
 def better_mayavi_lights(fig):
     azims = [60, -60, 60, -60]
@@ -396,11 +402,6 @@ def mismatch_angle_for_bridge(declination_angle, input_path, npoints=30):
     angle = mismatch_angle_for_path(path_with_bridge)
     return angle
 
-def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30):
-    path_with_bridge = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False)
-    angle = mismatch_angle_for_path(path_with_bridge)
-    return angle
-
 def find_best_bridge(input_path, npoints=30, do_plot=True):
     declination_angles = np.linspace(-np.pi * 0.75, np.pi * 0.75, 13)
     mismatches = []
@@ -419,24 +420,55 @@ def find_best_bridge(input_path, npoints=30, do_plot=True):
     print(f'Best mismatch: {left_hand_side(best_declination)}')
     return best_declination[0]
 
+
+def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30, return_error_messages=True):
+    path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False)
+    angle = mismatch_angle_for_path(path_with_bridge)
+    if return_error_messages:
+        return angle, is_successful
+    else:
+        return angle
+
+
 def find_best_smooth_bridge(input_path, npoints=30, do_plot=True):
-    declination_angles = np.linspace(-np.pi * 0.75, np.pi * 0.75, 12)
+    declination_angles = np.linspace(-np.pi * 0.75, np.pi * 0.75, 20)
     mismatches = []
     for i, declination_angle in enumerate(declination_angles):
-        mismatches.append(mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30))
+        mismatches.append(mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=npoints))
         print(f'Preliminary screening, step {i} completed')
-    initial_guess = declination_angles[np.argmin(np.abs(np.array(mismatches)))]
-    print(f'Initial guess: {initial_guess}')
-    if do_plot:
-        plt.plot(declination_angles, mismatches, 'o-')
-        plt.show()
-    def left_hand_side(x): # the function whose root we want to find
-        print(f'Sampling function at x={x}')
-        return np.array([mismatch_angle_for_bridge(s, input_path, npoints=30) for s in x])
-    best_declination = fsolve(left_hand_side, initial_guess, maxfev=20)
-    print(f'Best declination: {best_declination}')
-    print(f'Best mismatch: {left_hand_side(best_declination)}')
-    return best_declination[0]
+    mismatches = np.array(mismatches)
+    # use split by mask here and find roots in each subsection
+    mask_here = mismatches[:,1]
+    declination_fragments = split_by_mask(declination_angles, mask_here)
+    mismatches_fragments = split_by_mask(mismatches[:,0], mask_here)
+    found_sign_change = False
+    for i, mismatches_fragment in enumerate(mismatches_fragments):
+        if np.max(mismatches_fragment) >= 0 and np.min(mismatches_fragment) <= 0:
+            minangle = np.min(declination_fragments[i])
+            maxangle = np.max(declination_fragments[i])
+            linear_interpolator_function = interpolate.interp1d(declination_fragments[i], mismatches_fragment)
+            found_sign_change = True
+            break
+    if not found_sign_change:
+        return False
+    else:
+        initial_guess = brentq(linear_interpolator_function, a=minangle, b=maxangle)
+        position = np.argmax(declination_angles > initial_guess)
+        maxangle = declination_angles[position]
+        minangle = declination_angles[position-1]
+        print(f'Sign-changing interval: from {minangle} to {maxangle}')
+        # initial_guess = declination_angles[np.argmin(np.abs(np.array(mismatches)))]
+        print(f'Initial guess: {initial_guess}')
+        if do_plot:
+            plt.plot(declination_angles, mismatches, 'o-')
+            plt.show()
+        def left_hand_side(x): # the function whose root we want to find
+            print(f'Sampling function at x={x}')
+            return mismatch_angle_for_smooth_bridge(x, input_path, npoints=npoints, return_error_messages=False)
+        best_declination = brentq(left_hand_side, a=minangle, b=maxangle, maxiter=20, xtol=0.001, rtol=0.01)
+        print(f'Best declination: {best_declination}')
+        print(f'Best mismatch: {left_hand_side(best_declination)}')
+        return best_declination
 
 
 def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.2, do_plot = True):
@@ -500,11 +532,13 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
     if forward_sign * backward_sign < 0: # if still not on same side even despite the sign flip
         print('Deflections are never on the same side. Escaping.')
         res = input_path
+        is_successful = False
     else:
         pd = pairwise_distances(forward_arc_points, backward_arc_points)
         if np.min(pd) < 2*geodesic_length_of_single_step:
             print('Intersection of forward and backward arcs. Escaping.')
             res = input_path
+            is_successful = False
         else:
             # Find the intersection point of the straight segments
             forward_straight_section_axis = np.cross(forward_arc_points[-2], forward_arc_points[-1])
@@ -532,6 +566,7 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
             if (forward_straight_section_length <= 0) or (backward_straight_section_length <= 0):
                 print('Impossible to make main arc: intersection too close. Escaping')
                 res = input_path
+                is_successful = False
             else:
                 forward_straight_section_points = bridge_two_points_by_arc(forward_arc_points[-1],
                                                                            rotate_3d_vector(forward_arc_points[-1],
@@ -592,20 +627,22 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                                 bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
                     tube_radius = 0.01
                     plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-                    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+                    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=tuple(np.array([31,119,180])/255),
                                     tube_radius=tube_radius, opacity=0.5)
                     for piece_of_bridge in [forward_arc_points, backward_arc_points]:
-                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=(0, 1, 0),
+                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=tuple(np.array([44, 160, 44])/255),
                                         tube_radius=tube_radius, opacity=0.5)
                     for piece_of_bridge in [forward_straight_section_points, backward_straight_section_points]:
-                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=(1, 0, 0),
+                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=tuple(np.array([255, 127, 14])/255),
                                         tube_radius=tube_radius, opacity=0.5)
                     for piece_of_bridge in [main_arc_points]:
-                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=(0, 1, 0),
+                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=tuple(np.array([44, 160, 44])/255),
                                         tube_radius=tube_radius, opacity=0.5)
                     # for point_here in [backward_arc_points[0]]:
                     #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
+                    mlab.view(elevation=120, azimuth=180, roll=-90)
                     mlab.savefig('tests/figures/{0:.2f}.png'.format(input_declination_angle))
+                    mlab.close()
                     # mlab.show()
                 trace_with_bridge = np.concatenate((sphere_trace,
                                       forward_arc_points[1:],
@@ -615,4 +652,5 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                                       backward_arc_points[1:-1]),
                                      axis=0)
                 res = path_from_trace(trace_with_bridge)
-    return res
+                is_successful = True
+    return res, is_successful
