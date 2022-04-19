@@ -295,6 +295,10 @@ def filter_backward_declination(declination_angle, input_path, maximum_angle_fro
     angle_from_vertical = signed_angle_between_2d_vectors(np.array([-1, 0]), candidate_direction_backward)
     if np.abs(angle_from_vertical) >= maximum_angle_from_vertical:
         declination_angle = maximum_angle_from_vertical * np.sign(angle_from_vertical) - angle0
+
+    # this is to prevent exactly zero declination angles, lest it would cause degenerate backward small arc
+    if declination_angle == 0:
+        declination_angle = declination_angle + 1e-4
     return declination_angle
 
 def filter_forward_declination(declination_angle, input_path, maximum_angle_from_vertical = np.pi/180*80):
@@ -310,6 +314,10 @@ def filter_forward_declination(declination_angle, input_path, maximum_angle_from
     angle_from_vertical = signed_angle_between_2d_vectors(np.array([1, 0]), candidate_direction_forward)
     if np.abs(angle_from_vertical) >= maximum_angle_from_vertical:
         declination_angle = maximum_angle_from_vertical * np.sign(angle_from_vertical) - angle0
+
+    # this is to prevent exactly zero declination angles: lest this would cause degenerate forward small arc
+    if declination_angle == 0:
+        declination_angle = declination_angle + 1e-4
     return declination_angle
 
 def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, do_plot = True):
@@ -323,7 +331,7 @@ def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, d
     #       2.2. Check that backward arc and forward arc are in the same hemosphere. If not, multiply the backward angle
     #            by (-1) and use the new backward angle instead.
     # 3. Find the intersection of backward and forward arc. There are two intersection. You need the one that is in the
-    #    same hemisphere as the infinitely small starting sections of that arc.
+    #    same hemisphere as the infinitely small starting sections of that arc
 
     sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
     # forward arc
@@ -449,7 +457,7 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True):
             linear_interpolator_function = interpolate.interp1d(declination_fragments[i], mismatches_fragment)
             found_sign_change = True
             break
-    if not found_sign_change:
+    if not found_sign_change: # this means failure of the entire endeavour
         return False
     else:
         initial_guess = brentq(linear_interpolator_function, a=minangle, b=maxangle)
@@ -471,7 +479,10 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True):
         return best_declination
 
 
-def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.2, do_plot = True):
+def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.2,
+                                 do_plot = True, mlab_show = False,
+                                 default_forward_angle = 'downward',
+                                 default_backward_angle = 'downward'):
     # forward smooth deflection section is a semicircle made by slowly rotating tangent with a given curvature radius
     #   until the total accumulated angle (in plane) is equal to the input deflection angle
     # Backward deflection section is created similarly.
@@ -480,8 +491,15 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
     sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
     # forward arc
     axis_at_last_point = np.cross(sphere_trace[-2], sphere_trace[-1])
-    forward_declination_angle = filter_forward_declination(input_declination_angle, input_path)
-    print(f'Forward angle -- raw={input_declination_angle}, filtered={forward_declination_angle}')
+    # find angle between the direction at last point and the direction to downward
+    if default_forward_angle == 'downward':
+        tangent_forward = input_path[-1] - input_path[-2]
+        default_forward_angle = signed_angle_between_2d_vectors(np.array([1, 0]), tangent_forward)
+    if default_backward_angle == 'downward':
+        tangent_backward = input_path[0] - input_path[1]
+        default_backward_angle = -1*signed_angle_between_2d_vectors(np.array([-1, 0]), tangent_backward)
+    forward_declination_angle = filter_forward_declination(input_declination_angle + default_forward_angle, input_path)
+    print(f'Forward angle:  raw={input_declination_angle}, filtered={forward_declination_angle}')
     turn_angle_increment = forward_declination_angle/npoints
     geodesic_length_of_single_step = np.abs(min_curvature_radius * forward_declination_angle/npoints)
     point_here = np.copy(sphere_trace[-1])
@@ -496,8 +514,8 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
 
     def get_backward_arc(input_declination_angle, input_path, sphere_trace):
         axis_at_last_point = np.cross(sphere_trace[0], sphere_trace[1])
-        backward_declination_angle = filter_backward_declination(input_declination_angle, input_path)
-        print(f'Backward angle -- raw={input_declination_angle}, filtered={backward_declination_angle}')
+        backward_declination_angle = filter_backward_declination(input_declination_angle + default_backward_angle, input_path)
+        print(f'Backward angle: raw={input_declination_angle}, filtered={backward_declination_angle}')
         turn_angle_increment = backward_declination_angle/npoints
         geodesic_length_of_single_step = np.abs(min_curvature_radius * backward_declination_angle/npoints)
         point_here = np.copy(sphere_trace[0])
@@ -642,8 +660,9 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
                     mlab.view(elevation=120, azimuth=180, roll=-90)
                     mlab.savefig('tests/figures/{0:.2f}.png'.format(input_declination_angle))
+                    if mlab_show:
+                        mlab.show()
                     mlab.close()
-                    # mlab.show()
                 trace_with_bridge = np.concatenate((sphere_trace,
                                       forward_arc_points[1:],
                                       forward_straight_section_points[1:],
