@@ -1,13 +1,43 @@
 import numpy as np
 from numpy.linalg import norm as lnorm
 import trimesh
+import time
 import matplotlib.pyplot as plt
 from skimage import io
 from mayavi import mlab
 from math import atan2
-from scipy.optimize import fsolve, brentq
+from scipy.optimize import fsolve, brentq, minimize
 from scipy import interpolate
 from sklearn.metrics import pairwise_distances
+from numba import jit
+# from great_circle_arc import intersects
+
+@jit(nopython=True)
+def numbacross(a,b):
+    return [a[1]*b[2] - b[1]*a[2], -a[0]*b[2] + b[0]*a[2], a[0]*b[1] - b[0]*a[1]]
+
+@jit(nopython=True)
+def numbadotsign(a,b):
+    x = a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+    if x>0:
+        r = 1
+    elif x<0:
+        r = -1
+    else:
+        r = 0
+    return r
+
+@jit(nopython=True)
+def intersects(A, B, C, D):
+    ABX = numbacross(A, B)
+    CDX = numbacross(C, D)
+    T = numbacross(ABX, CDX)
+    s = 0
+    s += numbadotsign(numbacross(ABX, A), T)
+    s += numbadotsign(numbacross(B, ABX), T)
+    s += numbadotsign(numbacross(CDX, C), T)
+    s += numbadotsign(numbacross(D, CDX), T)
+    return (s == 4) or (s == -4)
 
 def split_by_mask(signal, input_mask):
     mask = np.concatenate(([False], input_mask, [False] ))
@@ -67,6 +97,24 @@ def rotate_3d_vector(input_vector, axis_of_rotation, angle):
                                                                   point=[0, 0, 0])
         point1_trimesh.apply_transform(rotation_matrix)
         return np.array(point1_trimesh.vertices[0])
+
+def spherical_trace_is_self_intersecting(sphere_trace):
+    t0 = time.time()
+    arcs = [[sphere_trace[i], sphere_trace[i+1]] for i in range(sphere_trace.shape[0]-1)]
+    intersection_detected = False
+    for i in range(len(arcs)):
+        for j in reversed(range(len(arcs))):
+            if (j <= (i + 1)) or ((i == 0) and (j == (len(arcs)-1))):
+                continue
+            else:
+                if intersects(arcs[i][0], arcs[i][1], arcs[j][0], arcs[j][1]):
+                    intersection_detected = True
+                    print(f'self-intersection at i={i}, j={j}')
+                    break
+        if intersection_detected:
+            break
+    print(f"Computed intesections in {(time.time() - t0)} seconds")
+    return intersection_detected
 
 # def rotate_2d_by_matrix(vector, theta):
 #     c, s = np.cos(theta), np.sin(theta)
@@ -284,6 +332,8 @@ def bridge_two_points_by_arc(point1, point2, npoints = 10):
     return np.array(points_of_bridge)
 
 def filter_backward_declination(declination_angle, input_path, maximum_angle_from_vertical = np.pi/180*80):
+    if declination_angle > np.pi:
+        declination_angle = declination_angle - 2*np.pi
     tangent_backward = input_path[0] - input_path[1]
     angle0 = signed_angle_between_2d_vectors(np.array([-1, 0]), tangent_backward)
 
@@ -302,11 +352,12 @@ def filter_backward_declination(declination_angle, input_path, maximum_angle_fro
     return declination_angle
 
 def filter_forward_declination(declination_angle, input_path, maximum_angle_from_vertical = np.pi/180*80):
+    if declination_angle > np.pi:
+        declination_angle = declination_angle - 2*np.pi
     tangent_forward = input_path[-1] - input_path[-2]
     angle0 = signed_angle_between_2d_vectors(np.array([1, 0]), tangent_forward)
 
     candidate_direction_forward = rotate_2d(tangent_forward, declination_angle)
-    print(tangent_forward)
     a = signed_angle_between_2d_vectors(tangent_forward, candidate_direction_forward)
     assert np.isclose(a, declination_angle)
 
@@ -438,8 +489,8 @@ def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30, 
         return angle
 
 
-def find_best_smooth_bridge(input_path, npoints=30, do_plot=True):
-    declination_angles = np.linspace(-np.pi * 0.75, np.pi * 0.75, 20)
+def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declination=np.pi/180*80):
+    declination_angles = np.linspace(-max_declination, max_declination, 20)
     mismatches = []
     for i, declination_angle in enumerate(declination_angles):
         mismatches.append(mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=npoints))
@@ -480,7 +531,7 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True):
 
 
 def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.2,
-                                 do_plot = True, mlab_show = False,
+                                 do_plot = True, mlab_show = True,
                                  default_forward_angle = 'downward',
                                  default_backward_angle = 'downward'):
     # forward smooth deflection section is a semicircle made by slowly rotating tangent with a given curvature radius
@@ -497,9 +548,11 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
         default_forward_angle = signed_angle_between_2d_vectors(np.array([1, 0]), tangent_forward)
     if default_backward_angle == 'downward':
         tangent_backward = input_path[0] - input_path[1]
-        default_backward_angle = -1*signed_angle_between_2d_vectors(np.array([-1, 0]), tangent_backward)
-    forward_declination_angle = filter_forward_declination(input_declination_angle + default_forward_angle, input_path)
-    print(f'Forward angle:  raw={input_declination_angle}, filtered={forward_declination_angle}')
+        default_backward_angle = signed_angle_between_2d_vectors(np.array([-1, 0]), tangent_backward)
+    # TODO: Also implemennt option where default direction is connecting the end and beginning point
+
+    forward_declination_angle = filter_forward_declination(input_declination_angle - default_forward_angle, input_path)
+    print(f'Forward angle:  raw={input_declination_angle}, plusdef={input_declination_angle - default_forward_angle}, filtered={forward_declination_angle}')
     turn_angle_increment = forward_declination_angle/npoints
     geodesic_length_of_single_step = np.abs(min_curvature_radius * forward_declination_angle/npoints)
     point_here = np.copy(sphere_trace[-1])
@@ -514,8 +567,8 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
 
     def get_backward_arc(input_declination_angle, input_path, sphere_trace):
         axis_at_last_point = np.cross(sphere_trace[0], sphere_trace[1])
-        backward_declination_angle = filter_backward_declination(input_declination_angle + default_backward_angle, input_path)
-        print(f'Backward angle: raw={input_declination_angle}, filtered={backward_declination_angle}')
+        backward_declination_angle = filter_backward_declination(input_declination_angle - default_backward_angle, input_path)
+        print(f'Backward angle: raw={input_declination_angle},  plusdef={input_declination_angle - default_backward_angle}, filtered={backward_declination_angle}')
         turn_angle_increment = backward_declination_angle/npoints
         geodesic_length_of_single_step = np.abs(min_curvature_radius * backward_declination_angle/npoints)
         point_here = np.copy(sphere_trace[0])
@@ -529,25 +582,32 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
         backward_arc_points = np.array(backward_arc_points)
         return backward_arc_points
 
-    # # make sure that they are on the same side -- inaccurate version
-    # backward_arc_points = get_backward_arc(input_declination_angle, input_path, sphere_trace)
-    # reference_plane_normal = np.cross(sphere_trace[-1], sphere_trace[0])
-    # forward_sign = np.dot(forward_arc_points[-1] - sphere_trace[-1], reference_plane_normal)
-    # backward_sign = np.dot(backward_arc_points[-1] - sphere_trace[0], reference_plane_normal)
+
+    backward_arc_points = get_backward_arc(input_declination_angle, input_path, sphere_trace)
 
     # # make sure that they are on the same side -- better version
-    backward_arc_points = get_backward_arc(input_declination_angle, input_path, sphere_trace)
-    reference_plane_normal = np.cross(backward_arc_points[-2], forward_arc_points[-2])
-    forward_sign = np.dot(forward_arc_points[-1] - forward_arc_points[-2], reference_plane_normal)
-    backward_sign = np.dot(backward_arc_points[-1] - backward_arc_points[-2], reference_plane_normal)
+    reference_plane_normal1 = np.cross(backward_arc_points[-2], forward_arc_points[-2])
+    forward_sign1 = np.dot(forward_arc_points[-1] - forward_arc_points[-2], reference_plane_normal1)
+    backward_sign1 = np.dot(backward_arc_points[-1] - backward_arc_points[-2], reference_plane_normal1)
+
+    # make sure that they are on the same side -- inaccurate version
+    reference_plane_normal2 = np.cross(sphere_trace[-1], sphere_trace[0])
+    forward_sign2 = np.dot(forward_arc_points[-1] - sphere_trace[-1], reference_plane_normal2)
+    backward_sign2 = np.dot(backward_arc_points[-1] - sphere_trace[0], reference_plane_normal2)
 
     # if they are not on the same side, then use opposite declination for backward arc
-    if forward_sign * backward_sign < 0:
+    if (forward_sign1 * backward_sign1 < 0): # or (forward_sign2 * backward_sign2 < 0):
         backward_arc_points = get_backward_arc(-1*input_declination_angle, input_path, sphere_trace)
-        reference_plane_normal = np.cross(backward_arc_points[-2], forward_arc_points[-2])
-        forward_sign = np.dot(forward_arc_points[-1] - forward_arc_points[-2], reference_plane_normal)
-        backward_sign = np.dot(backward_arc_points[-1] - backward_arc_points[-2], reference_plane_normal)
-    if forward_sign * backward_sign < 0: # if still not on same side even despite the sign flip
+
+        reference_plane_normal1 = np.cross(backward_arc_points[-2], forward_arc_points[-2])
+        forward_sign1 = np.dot(forward_arc_points[-1] - forward_arc_points[-2], reference_plane_normal1)
+        backward_sign1 = np.dot(backward_arc_points[-1] - backward_arc_points[-2], reference_plane_normal1)
+
+        reference_plane_normal2 = np.cross(sphere_trace[-1], sphere_trace[0])
+        forward_sign2 = np.dot(forward_arc_points[-1] - sphere_trace[-1], reference_plane_normal2)
+        backward_sign2 = np.dot(backward_arc_points[-1] - sphere_trace[0], reference_plane_normal2)
+    if (forward_sign1 * backward_sign1 < 0):# or (forward_sign2 * backward_sign2 < 0):
+        # if still not on same side even despite the sign flip
         print('Deflections are never on the same side. Escaping.')
         res = input_path
         is_successful = False
@@ -566,7 +626,7 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
             # make sure that the intersection is on the proper side of the plane passing through the line connecting
             #   two ends of input path and (0, 0, 0)
             sign_marker = 1
-            if np.dot(intersection, reference_plane_normal) * forward_sign < 0:
+            if np.dot(intersection, reference_plane_normal1) * forward_sign1 < 0:
                 intersection = -1*intersection
                 sign_marker = -1
             geodesic_length_from_intersection_to_forward_arc = unsigned_angle_between_vectors(intersection,
@@ -662,7 +722,8 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     mlab.savefig('tests/figures/{0:.2f}.png'.format(input_declination_angle))
                     if mlab_show:
                         mlab.show()
-                    mlab.close()
+                    else:
+                        mlab.close()
                 trace_with_bridge = np.concatenate((sphere_trace,
                                       forward_arc_points[1:],
                                       forward_straight_section_points[1:],
@@ -670,6 +731,13 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                                       backward_straight_section_points[1:],
                                       backward_arc_points[1:-1]),
                                      axis=0)
-                res = path_from_trace(trace_with_bridge)
-                is_successful = True
+
+                #check for self-intersections
+                if spherical_trace_is_self_intersecting(trace_with_bridge):
+                    res = input_path
+                    is_successful = False
+                    print('Self-intersection of whole trace_with_bridge. Escaping.')
+                else:
+                    res = path_from_trace(trace_with_bridge)
+                    is_successful = True
     return res, is_successful
