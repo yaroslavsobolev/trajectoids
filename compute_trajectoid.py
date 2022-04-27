@@ -535,7 +535,7 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declinatio
         return best_declination
 
 
-def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.2,
+def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.01,#0.2,
                                  do_plot = True, mlab_show = False, make_animation=False,
                                  default_forward_angle = 'downward',
                                  default_backward_angle = 'downward'):
@@ -554,7 +554,57 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
     if default_backward_angle == 'downward':
         tangent_backward = input_path[0] - input_path[1]
         default_backward_angle = signed_angle_between_2d_vectors(np.array([-1, 0]), tangent_backward)
-    # TODO: Also implemennt option where default direction is connecting the end and beginning point
+
+    # implemennt option where default direction is connecting the end and beginning point
+    if default_forward_angle == 'directbridge':
+        axis_of_direct_bridge = np.cross(sphere_trace[-1], sphere_trace[0])
+        sign_here = np.sign(np.dot(sphere_trace[-1],
+                                   np.cross(axis_at_last_point, axis_of_direct_bridge)))
+        default_forward_angle = -1 * sign_here * unsigned_angle_between_vectors(axis_at_last_point, axis_of_direct_bridge)
+
+    # # TEMPORARY -- FOR DEBUG
+    # core_radius = 1
+    # mfig = mlab.figure(size=(1024, 768), bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+    # tube_radius = 0.01
+    # arccolor = tuple(np.array([44, 160, 44]) / 255)
+    # arccolor = (1, 0, 0)
+    # plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+    #
+    # l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2],
+    #                 color=tuple(np.array([31, 119, 180]) / 255),
+    #                 tube_radius=tube_radius, opacity=0.5)
+    # next_axis = rotate_3d_vector(axis_at_last_point, sphere_trace[-1], input_declination_angle-default_forward_angle)
+    # next_point = rotate_3d_vector(sphere_trace[-1], next_axis, 0.1)
+    # for point_here in [next_point]:
+    #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
+    # mlab.show()
+    # # END OF TEMPORARY
+
+    # implemennt option where default direction is connecting the end and beginning point
+    if default_backward_angle == 'directbridge':
+        axis_at_first_point = np.cross(sphere_trace[1], sphere_trace[0])
+        axis_of_direct_bridge = np.cross(sphere_trace[0], sphere_trace[-1])
+        sign_here = np.sign(np.dot(sphere_trace[0],
+                                   np.cross(axis_at_first_point, axis_of_direct_bridge)))
+        default_backward_angle = sign_here * unsigned_angle_between_vectors(axis_at_first_point, axis_of_direct_bridge)
+
+    # # TEMPORARY -- FOR DEBUG
+    # core_radius = 1
+    # mfig = mlab.figure(size=(1024, 768), bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+    # tube_radius = 0.01
+    # arccolor = tuple(np.array([44, 160, 44]) / 255)
+    # arccolor = (1, 0, 0)
+    # plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+    # l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2],
+    #                 color=tuple(np.array([31, 119, 180]) / 255),
+    #                 tube_radius=tube_radius, opacity=0.5)
+    # axis_at_last_point = np.cross(sphere_trace[0], sphere_trace[1])
+    # next_axis = rotate_3d_vector(axis_at_last_point, sphere_trace[0], -(input_declination_angle-default_backward_angle))
+    # next_point = rotate_3d_vector(sphere_trace[0], next_axis, -0.1)
+    # for point_here in [next_point]:
+    #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(0, 1, 0))
+    # mlab.show()
+    # # END OF TEMPORARY
 
     forward_declination_angle = filter_forward_declination(input_declination_angle - default_forward_angle, input_path)
     print(f'Forward angle:  raw={input_declination_angle}, plusdef={input_declination_angle - default_forward_angle}, filtered={forward_declination_angle}')

@@ -232,9 +232,14 @@ def make_random_path(Npath = 150, factor = 2, factor2 = 0.8, seed=1, make_ends_h
     ys = savgol_filter(ys, 7, 1)
     if start_from_zero:
         ys = ys - ys[0]
-    if make_ends_horizontal:
+    if make_ends_horizontal == 'both':
         ys[1] = ys[0]
         ys[-1] = ys[-2]
+    elif make_ends_horizontal == 'last':
+        ys[-1] = ys[-2]
+    elif make_ends_horizontal == 'first':
+        ys[1] = ys[0]
+
     return np.stack((xs, ys)).T
 
 def blend_two_paths(path1, path2, fraction_of_path1):
@@ -267,7 +272,96 @@ def get_scale_that_minimizes_end_to_end(input_path, minimal_scale=0.1):
     print(solution)
     return solution.x
 
-input_path_0 = blend_two_paths(make_random_path(seed=0), make_random_path(seed=1), fraction_of_path1=0.5)
+def plot_bridged_path(path, savetofilename=False, npoints=30):
+    fig, ax = plt.subplots(figsize=(8, 2))
+    path = path_with_bridge
+    bridgelen = npoints * 5 - 5
+    dxs = [0,
+           - path[-1, 0],
+           path[-1, 0]]
+    dys = [0,
+           - path[-1, 1] + path[0, 1],
+           - path[0, 1] + path[-1, 1]]
+    for k in range(len(dxs)):
+        dx = dxs[k]
+        dy = dys[k]
+        plt.plot(path[:, 0] + dx,
+                 path[:, 1] + dy, '-', alpha=1, color='C1', linewidth=2)
+        plt.plot(path[:-(bridgelen), 0] + dx,
+                 path[:-(bridgelen), 1] + dy, '-', alpha=1, color='C0', linewidth=2)
+        plt.plot(path[-(bridgelen):-(bridgelen) + npoints - 1, 0] + dx,
+                 path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=1, color='red', linewidth=2)
+        plt.plot(path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 0] + dx,
+                 path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=1, color='red',
+                 linewidth=2)
+        plt.plot(path[-(npoints - 1):, 0] + dx,
+                 path[-(npoints - 1):, 1] + dy, '-', alpha=1, color='red',
+                 linewidth=2)
+    plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=10, alpha=0.8, color='black', zorder=100)
+
+    plt.axis('equal')
+    plt.xlim(-8, -8 + 25 * netscale)
+    ax.axis('off')
+    if savetofilename:
+        fig.savefig(savetofilename, dpi=300)
+    plt.show()
+
+# input_path_0 = blend_two_paths(make_random_path(seed=0), make_random_path(seed=1), fraction_of_path1=0.5)
+def test_directbridge():
+    input_path_0 = make_random_path(seed=0, make_ends_horizontal=False)
+
+    npoints = 30
+    netscale = 1
+    input_path = input_path_0
+
+    # optimal_netscale = get_scale_that_minimizes_end_to_end(input_path)
+
+    # input_path = optimal_netscale * input_path_0
+
+    optimal_netscale = 1
+    input_path = optimal_netscale * input_path_0
+
+    sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
+
+    if do_plot:
+        core_radius = 1
+        mlab.figure(size=(1024, 768), \
+                    bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+        tube_radius = 0.01
+        plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+        l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+                        tube_radius=tube_radius)
+        mlab.show()
+
+
+    ### SINGLE ANGLE TEST
+    declination_angle = 0.1
+    path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=True,
+                                                                   make_animation=False, mlab_show=True,
+                                                                   default_forward_angle='directbridge',
+                                                                   default_backward_angle='directbridge')
+    print(f'Is successful: {is_successful}')
+    # plot results
+    fig, ax = plt.subplots(figsize=(8, 2))
+    path = path_with_bridge
+    bridgelen = npoints * 5 - 5
+    plt.plot(path[:, 0], path[:, 1], '-', alpha=1, color='black', linewidth=2)
+    # plt.show()
+
+    plt.plot(path[:-(bridgelen), 0], path[:-(bridgelen), 1], '-', alpha=1, color='C1', linewidth=2)
+    plt.plot(path[:, 0] - path[-1, 0], path[:, 1] - path[-1, 1] + path[0, 1], '-', alpha=0.3, color='black', linewidth=2)
+    plt.plot(path[:-(bridgelen), 0] - path[-1, 0], path[:-(bridgelen), 1] - path[-1, 1] + path[0, 1], '-', alpha=0.3,
+             color='C1', linewidth=2)
+    plt.plot(path[:, 0] + path[-1, 0], path[:, 1] - path[0, 1] + path[-1, 1], '-', alpha=0.3, color='black', linewidth=2)
+    plt.plot(path[:-(bridgelen), 0] + path[-1, 0], path[:-(bridgelen), 1] - path[0, 1] + path[-1, 1], '-', alpha=0.3,
+             color='C1', linewidth=2)
+    plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], alpha=1, color='black')
+
+    plt.axis('equal')
+    ax.axis('off')
+    plt.show()
+
+input_path_0 = make_random_path(seed=1, make_ends_horizontal=False)
 
 npoints = 30
 netscale = 1
@@ -277,7 +371,7 @@ input_path = input_path_0
 
 # input_path = optimal_netscale * input_path_0
 
-optimal_netscale = 1.15
+optimal_netscale = 0.9473684210526316
 input_path = optimal_netscale * input_path_0
 
 sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
@@ -293,77 +387,24 @@ if do_plot:
     mlab.show()
 
 
-### SINGLE ANGLE TEST
-declination_angle = 1.3885089773333037
-path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=True,
-                                                               make_animation=True, mlab_show=True)
-print(f'Is successful: {is_successful}')
-# plot results
-fig, ax = plt.subplots(figsize=(8, 2))
-path = path_with_bridge
-bridgelen = npoints * 5 - 5
-plt.plot(path[:, 0], path[:, 1], '-', alpha=1, color='black', linewidth=2)
-# plt.show()
-
-plt.plot(path[:-(bridgelen), 0], path[:-(bridgelen), 1], '-', alpha=1, color='C1', linewidth=2)
-plt.plot(path[:, 0] - path[-1, 0], path[:, 1] - path[-1, 1] + path[0, 1], '-', alpha=0.3, color='black', linewidth=2)
-plt.plot(path[:-(bridgelen), 0] - path[-1, 0], path[:-(bridgelen), 1] - path[-1, 1] + path[0, 1], '-', alpha=0.3,
-         color='C1', linewidth=2)
-plt.plot(path[:, 0] + path[-1, 0], path[:, 1] - path[0, 1] + path[-1, 1], '-', alpha=0.3, color='black', linewidth=2)
-plt.plot(path[:-(bridgelen), 0] + path[-1, 0], path[:-(bridgelen), 1] - path[0, 1] + path[-1, 1], '-', alpha=0.3,
-         color='C1', linewidth=2)
-plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], alpha=1, color='black')
-
-plt.axis('equal')
-ax.axis('off')
-plt.show()
-
-# mfig = mlab.figure(size=(1024, 768), bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
-# core_radius = 1
-# tube_radius = 0.01
-# plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+# ### SINGLE ANGLE TEST
+# declination_angle = np.pi/4 # -1.3156036312041406
+# path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=True,
+#                                                                make_animation=False, mlab_show=True)
+# print(f'Is successful: {is_successful}')
+# plot_bridged_path(path_with_bridge, savetofilename=False)
 
 ## BEST ANGLE TEST
 for netscale in np.linspace(optimal_netscale, 0, 20):
     print(f'Netscale={netscale}')
     input_path = netscale * input_path_0
-    best_declination_angle = find_best_smooth_bridge(input_path, npoints=npoints)
+    best_declination_angle = find_best_smooth_bridge(input_path, npoints=npoints, max_declination=np.pi/180*80)
     if best_declination_angle:
         path_with_bridge, is_successful = make_smooth_bridge_candidate(best_declination_angle, input_path, npoints=npoints, do_plot=True,
                                                                        mlab_show = True, make_animation=True)
         print(f'Scale = {netscale}')
         # plot results
-        fig, ax = plt.subplots(figsize=(8, 2))
-        path = path_with_bridge
-        bridgelen = npoints*5-5
-        dxs = [0,
-               - path[-1, 0],
-                path[-1, 0]]
-        dys = [0,
-               - path[-1, 1] + path[0, 1],
-               - path[0, 1] + path[-1, 1]]
-        for k in range(len(dxs)):
-            dx = dxs[k]
-            dy = dys[k]
-            plt.plot(path[:, 0]+dx,
-                     path[:, 1]+dy, '-', alpha=1, color='C1', linewidth=2)
-            plt.plot(path[:-(bridgelen), 0]+dx,
-                     path[:-(bridgelen), 1]+dy, '-', alpha=1, color='C0', linewidth=2)
-            plt.plot(path[-(bridgelen):-(bridgelen)+npoints-1, 0]+dx,
-                     path[-(bridgelen):-(bridgelen)+npoints-1, 1]+dy, '-', alpha=1, color='red', linewidth=2)
-            plt.plot(path[-(bridgelen) + npoints*2 - 2:-(bridgelen) + npoints*3 - 3, 0]+dx,
-                     path[-(bridgelen) + npoints*2 - 2:-(bridgelen) + npoints*3 - 3, 1]+dy, '-', alpha=1, color='red',
-                     linewidth=2)
-            plt.plot(path[-(npoints-1):, 0]+dx,
-                     path[-(npoints-1):, 1]+dy, '-', alpha=1, color='red',
-                     linewidth=2)
-        plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=10, alpha=0.8, color='black', zorder=100)
-
-        plt.axis('equal')
-        plt.xlim(-8, -8+25*netscale)
-        ax.axis('off')
-        fig.savefig(f'tests/figures/2d-path_netscale{netscale}.png', dpi=300)
-        plt.show()
+        plot_bridged_path(path_with_bridge, savetofilename=f'tests/figures/2d-path_netscale{netscale}.png', npoints=npoints)
         break
     else:
         print('No solution found.')
