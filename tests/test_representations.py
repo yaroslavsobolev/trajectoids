@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.signal import savgol_filter
 
 from compute_trajectoid import *
 
@@ -224,87 +223,6 @@ do_plot = True
 # input_path_0 =  np.stack((xs, ys)).T
 # ####### ================ end of almost-failing parameters
 
-def make_random_path(Npath = 150, factor = 2, factor2 = 0.8, seed=1, make_ends_horizontal=False, start_from_zero=True):
-    np.random.seed(seed)
-    xs = np.linspace(0, 2 * np.pi * factor2, Npath)
-    ys = np.random.rand(Npath)
-    ys = savgol_filter(factor*ys, 31, 3)
-    ys = savgol_filter(ys, 7, 1)
-    if start_from_zero:
-        ys = ys - ys[0]
-    if make_ends_horizontal == 'both':
-        ys[1] = ys[0]
-        ys[-1] = ys[-2]
-    elif make_ends_horizontal == 'last':
-        ys[-1] = ys[-2]
-    elif make_ends_horizontal == 'first':
-        ys[1] = ys[0]
-
-    return np.stack((xs, ys)).T
-
-def blend_two_paths(path1, path2, fraction_of_path1):
-    assert np.all(path1.shape == path2.shape)
-    assert np.all(path1[:,0] == path2[:,0])
-    assert fraction_of_path1 <= 1
-    assert fraction_of_path1 >= 0
-    result = np.copy(path1)
-    result[:,1] = fraction_of_path1 * path1[:, 1] + (1-fraction_of_path1) * path2[:, 1]
-    return result
-
-
-
-def get_end_to_end_distance(input_path, uniform_scale_factor):
-    sphere_trace = trace_on_sphere(input_path, kx=uniform_scale_factor, ky=uniform_scale_factor)
-    return np.linalg.norm(sphere_trace[0]-sphere_trace[-1])
-
-def get_scale_that_minimizes_end_to_end(input_path, minimal_scale=0.1):
-# find the scale factor that gives minimal end-to-end distance
-
-# the initial guess is such that length in x axis is 2*pi
-    initial_x_length = np.abs(input_path[-1, 0] - input_path[0, 0])
-    initial_guess = 2*np.pi/initial_x_length
-    print(initial_guess)
-    def func(x):
-        print(x)
-        return [get_end_to_end_distance(input_path, s) for s in x]
-    bounds = [[minimal_scale, np.inf]]
-    solution = minimize(func, initial_guess, bounds=bounds)
-    print(solution)
-    return solution.x
-
-def plot_bridged_path(path, savetofilename=False, npoints=30):
-    fig, ax = plt.subplots(figsize=(8, 2))
-    path = path_with_bridge
-    bridgelen = npoints * 5 - 5
-    dxs = [0,
-           - path[-1, 0],
-           path[-1, 0]]
-    dys = [0,
-           - path[-1, 1] + path[0, 1],
-           - path[0, 1] + path[-1, 1]]
-    for k in range(len(dxs)):
-        dx = dxs[k]
-        dy = dys[k]
-        plt.plot(path[:, 0] + dx,
-                 path[:, 1] + dy, '-', alpha=1, color='C1', linewidth=2)
-        plt.plot(path[:-(bridgelen), 0] + dx,
-                 path[:-(bridgelen), 1] + dy, '-', alpha=1, color='C0', linewidth=2)
-        plt.plot(path[-(bridgelen):-(bridgelen) + npoints - 1, 0] + dx,
-                 path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=1, color='red', linewidth=2)
-        plt.plot(path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 0] + dx,
-                 path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=1, color='red',
-                 linewidth=2)
-        plt.plot(path[-(npoints - 1):, 0] + dx,
-                 path[-(npoints - 1):, 1] + dy, '-', alpha=1, color='red',
-                 linewidth=2)
-    plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=10, alpha=0.8, color='black', zorder=100)
-
-    plt.axis('equal')
-    plt.xlim(-8, -8 + 25 * netscale)
-    ax.axis('off')
-    if savetofilename:
-        fig.savefig(savetofilename, dpi=300)
-    plt.show()
 
 # input_path_0 = blend_two_paths(make_random_path(seed=0), make_random_path(seed=1), fraction_of_path1=0.5)
 def test_directbridge():
@@ -371,7 +289,7 @@ input_path = input_path_0
 
 # input_path = optimal_netscale * input_path_0
 
-optimal_netscale = 0.9473684210526316
+optimal_netscale = 1.1
 input_path = optimal_netscale * input_path_0
 
 sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
@@ -404,7 +322,7 @@ for netscale in np.linspace(optimal_netscale, 0, 20):
                                                                        mlab_show = True, make_animation=True)
         print(f'Scale = {netscale}')
         # plot results
-        plot_bridged_path(path_with_bridge, savetofilename=f'tests/figures/2d-path_netscale{netscale}.png', npoints=npoints)
+        plot_bridged_path(path_with_bridge, savetofilename=f'tests/figures/2d-path_netscale{netscale}.png', npoints=npoints, netscale=netscale)
         break
     else:
         print('No solution found.')

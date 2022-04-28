@@ -39,6 +39,9 @@ def make_path(xlen, r, Npath = 400):
     overall_ys = np.concatenate((overall_ys, ys[1:]))
 
     input_path = np.stack((overall_xs, overall_ys)).T
+
+    input_path = double_the_path(input_path)
+
     return input_path
 
 def plot_mismatch_map_for_penannular(N=60, M=60, kx_range=(0.1, 5*np.pi), kr_range=(0.01, 1.5*np.pi)):
@@ -67,17 +70,28 @@ def plot_mismatch_map_for_penannular(N=60, M=60, kx_range=(0.1, 5*np.pi), kr_ran
     plt.xlabel('total length')
     plt.show()
 
-# path = make_path(2*np.pi, 0.5)
-# plt.scatter(path[:, 0], path[:, 1], alpha=0.5, color='C0')
-# plt.axis('equal')
-# plt.show()
+path = make_path(2*np.pi, 0.5)
+plt.scatter(path[:, 0], path[:, 1], alpha=0.5, color='C0')
+plt.axis('equal')
+plt.show()
 
-plot_mismatch_map_for_penannular(N=60,
-                                 M=60,
-                                 kx_range=(0.1, 11.5),
-                                 kr_range=(0.01, 1.5*np.pi))
+# plot_mismatch_map_for_penannular(N=20,
+#                                  M=20,
+#                                  kx_range=(0.1, 11.5),
+#                                  kr_range=(0.01, 1.5*np.pi))
 
 
-# data = make_path(xlen=9.5, r=2.82)
-# # data = make_path(xlen=9.5, r=2.5)
-# trace_on_sphere(data, kx=1, ky=1, core_radius=1, do_plot=True)
+# plot_mismatch_map_for_penannular(N=20,
+#                                  M=20,
+#                                  kx_range=(3.2, 4),
+#                                  kr_range=(0.5, 2))
+
+# # data = make_path(xlen=9.5, r=2.82, Npath=150)
+# data = make_path(2*np.pi, 0.5, Npath=150)
+# # # data = make_path(xlen=9.5, r=2.5)
+# trace_on_sphere(data, kx=0.5, ky=0.5, core_radius=1, do_plot=True)
+
+data = make_path(xlen=3.81, r=1.23, Npath=150)
+# data = make_path(2*np.pi, 0.5, Npath=150)
+# # # data = make_path(xlen=9.5, r=2.5)
+trace_on_sphere(data, kx=1, ky=1, core_radius=1, do_plot=True)

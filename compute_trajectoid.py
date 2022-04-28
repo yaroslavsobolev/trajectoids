@@ -10,6 +10,7 @@ from scipy.optimize import fsolve, brentq, minimize
 from scipy import interpolate
 from sklearn.metrics import pairwise_distances
 from numba import jit
+from scipy.signal import savgol_filter
 # from great_circle_arc import intersects
 
 @jit(nopython=True)
@@ -42,6 +43,10 @@ def intersects(A, B, C, D):
     s += numbadotsign(numbacross(CDX, C), T)
     s += numbadotsign(numbacross(D, CDX), T)
     return (s == 4) or (s == -4)
+
+def sort_path(arr2D):
+    columnIndex = 0
+    return arr2D[arr2D[:, columnIndex].argsort()]
 
 def split_by_mask(signal, input_mask):
     mask = np.concatenate(([False], input_mask, [False] ))
@@ -173,7 +178,8 @@ def rotation_to_origin(index_in_trajectory, data):
     # print('Sum_theta = {0}'.format(theta_sum))
     return net_rotation_matrix
 
-def plot_mismatch_map_for_scale_tweaking(data0, N=30, M=30, kx_range=(0.1, 2), ky_range=(0.1, 2)):
+def plot_mismatch_map_for_scale_tweaking(data0, N=30, M=30, kx_range=(0.1, 2), ky_range=(0.1, 2), vmin=0, vmax=np.pi,
+                                         signed_angle=False):
     # sweeping parameter space for optimal match of the starting and ending orientation
     angles = np.zeros(shape=(N, M))
     xs = np.zeros_like(angles)
@@ -191,7 +197,10 @@ def plot_mismatch_map_for_scale_tweaking(data0, N=30, M=30, kx_range=(0.1, 2), k
 
     print('Min angle = {0}'.format(np.min(np.abs(angles))))
     f3 = plt.figure(3)
-    plt.pcolormesh(xs, ys, np.abs(angles), cmap='viridis', vmin=0, vmax=0.05)
+    if signed_angle:
+        plt.pcolormesh(xs, ys, angles, cmap='viridis', vmin=-vmax, vmax=vmax)
+    else:
+        plt.pcolormesh(xs, ys, np.abs(angles), cmap='viridis', vmin=vmin, vmax=vmax)
     plt.colorbar()
     plt.show()
 
@@ -264,7 +273,7 @@ def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
         # tube_radius=0.05
         tube_radius = 0.01
 
-        plot_sphere(r = core_radius - tube_radius, line_radius = tube_radius/4)
+        plot_sphere(r0 = core_radius - tube_radius, line_radius = tube_radius/4)
         # # plot a simple sphere
         # phi, theta = np.mgrid[0:np.pi:31j, 0:2 * np.pi:31j]
         # r = 0.95
@@ -484,8 +493,9 @@ def find_best_bridge(input_path, npoints=30, do_plot=True):
     return best_declination[0]
 
 
-def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30, return_error_messages=True):
-    path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False)
+def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30, return_error_messages=True, min_curvature_radius=0.2):
+    path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False,
+                                                                   min_curvature_radius=min_curvature_radius)
     angle = mismatch_angle_for_path(path_with_bridge)
     if return_error_messages:
         return angle, is_successful
@@ -493,11 +503,12 @@ def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30, 
         return angle
 
 
-def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declination=np.pi/180*80):
+def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declination=np.pi/180*80, min_curvature_radius=0.2):
     declination_angles = np.linspace(-max_declination, max_declination, 20)
     mismatches = []
     for i, declination_angle in enumerate(declination_angles):
-        mismatches.append(mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=npoints))
+        mismatches.append(mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=npoints,
+                                                           min_curvature_radius=min_curvature_radius))
         print(f'Preliminary screening, step {i} completed')
     mismatches = np.array(mismatches)
     # use split by mask here and find roots in each subsection
@@ -528,14 +539,15 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declinatio
             plt.show()
         def left_hand_side(x): # the function whose root we want to find
             print(f'Sampling function at x={x}')
-            return mismatch_angle_for_smooth_bridge(x, input_path, npoints=npoints, return_error_messages=False)
+            return mismatch_angle_for_smooth_bridge(x, input_path, npoints=npoints, return_error_messages=False,
+                                                    min_curvature_radius=min_curvature_radius)
         best_declination = brentq(left_hand_side, a=minangle, b=maxangle, maxiter=20, xtol=0.001, rtol=0.01)
         print(f'Best declination: {best_declination}')
         print(f'Best mismatch: {left_hand_side(best_declination)}')
         return best_declination
 
 
-def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.01,#0.2,
+def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.2,
                                  do_plot = True, mlab_show = False, make_animation=False,
                                  default_forward_angle = 'downward',
                                  default_backward_angle = 'downward'):
@@ -613,7 +625,7 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
     point_here = np.copy(sphere_trace[-1])
     forward_arc_points = [point_here]
     for i in range(npoints):
-        next_axis = rotate_3d_vector(axis_at_last_point, point_here, turn_angle_increment)
+        next_axis = rotate_3d_vector(axis_at_last_point, point_here, -turn_angle_increment)
         next_point = rotate_3d_vector(point_here, next_axis, geodesic_length_of_single_step)
         forward_arc_points.append(next_point)
         axis_at_last_point = np.copy(next_axis)
@@ -790,3 +802,109 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     res = path_from_trace(trace_with_bridge)
                     is_successful = True
     return res, is_successful
+
+def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1):
+    fig, ax = plt.subplots(figsize=(8, 2))
+    bridgelen = npoints * 5 - 5
+    dxs = [0,
+           - path[-1, 0],
+           path[-1, 0]]
+    dys = [0,
+           - path[-1, 1] + path[0, 1],
+           - path[0, 1] + path[-1, 1]]
+    for k in range(len(dxs)):
+        dx = dxs[k]
+        dy = dys[k]
+        plt.plot(path[:, 0] + dx,
+                 path[:, 1] + dy, '-', alpha=1, color='C1', linewidth=2)
+        plt.plot(path[:-(bridgelen), 0] + dx,
+                 path[:-(bridgelen), 1] + dy, '-', alpha=1, color='C0', linewidth=2)
+        plt.plot(path[-(bridgelen):-(bridgelen) + npoints - 1, 0] + dx,
+                 path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=1, color='red', linewidth=2)
+        plt.plot(path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 0] + dx,
+                 path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=1, color='red',
+                 linewidth=2)
+        plt.plot(path[-(npoints - 1):, 0] + dx,
+                 path[-(npoints - 1):, 1] + dy, '-', alpha=1, color='red',
+                 linewidth=2)
+    plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=10, alpha=0.8, color='black', zorder=100)
+
+    plt.axis('equal')
+    plt.xlim(-8, -8 + 25 * netscale)
+    ax.axis('off')
+    if savetofilename:
+        fig.savefig(savetofilename, dpi=300)
+    plt.show()
+
+def make_random_path(Npath = 150, factor = 2, factor2 = 0.8, seed=1, make_ends_horizontal=False, start_from_zero=True,
+                     end_with_zero=False):
+    np.random.seed(seed)
+    xs = np.linspace(0, 2 * np.pi * factor2, Npath)
+    ys = np.random.rand(Npath)
+    ys = savgol_filter(factor*ys, 31, 3)
+    ys = savgol_filter(ys, 7, 1)
+    if start_from_zero:
+        ys = ys - ys[0]
+    if end_with_zero:
+        ys = ys - xs*(ys[-1] - ys[0])/(xs[-1] - xs[0])
+    if make_ends_horizontal == 'both':
+        ys[1] = ys[0]
+        ys[-1] = ys[-2]
+    elif make_ends_horizontal == 'last':
+        ys[-1] = ys[-2]
+    elif make_ends_horizontal == 'first':
+        ys[1] = ys[0]
+
+    return np.stack((xs, ys)).T
+
+
+def blend_two_paths(path1, path2, fraction_of_path1):
+    assert np.all(path1.shape == path2.shape)
+    assert np.all(path1[:,0] == path2[:,0])
+    assert fraction_of_path1 <= 1
+    assert fraction_of_path1 >= 0
+    result = np.copy(path1)
+    result[:,1] = fraction_of_path1 * path1[:, 1] + (1-fraction_of_path1) * path2[:, 1]
+    return result
+
+def get_end_to_end_distance(input_path, uniform_scale_factor):
+    sphere_trace = trace_on_sphere(input_path, kx=uniform_scale_factor, ky=uniform_scale_factor)
+    return np.linalg.norm(sphere_trace[0]-sphere_trace[-1])
+
+
+def get_scale_that_minimizes_end_to_end(input_path, minimal_scale=0.1):
+    # find the scale factor that gives minimal end-to-end distance
+    # the initial guess is such that length in x axis is 2*pi
+    initial_x_length = np.abs(input_path[-1, 0] - input_path[0, 0])
+    initial_guess = 2*np.pi/initial_x_length
+    print(initial_guess)
+    def func(x):
+        print(x)
+        return [get_end_to_end_distance(input_path, s) for s in x]
+    bounds = [[minimal_scale, np.inf]]
+    solution = minimize(func, initial_guess, bounds=bounds)
+    print(solution)
+    return solution.x
+
+def double_the_path(input_path_0, do_plot=False):
+    # input_path_0 = input_path
+    input_path_1 = np.copy(input_path_0)
+    # input_path_1[:,0] = 2*input_path_1[-1,0]-input_path_1[:,0]
+    input_path_1[:, 0] = input_path_1[-1, 0] + input_path_1[:, 0]
+    # input_path_1[:,1] = -1*input_path_1[:,1]
+
+    # input_path_1 = np.concatenate((input_path_0, np.flipud))
+    if do_plot:
+        plt.plot(input_path_0[:, 0], input_path_0[:, 1], '-', color='C2')
+        plt.plot(input_path_1[:, 0], input_path_1[:, 1], '-', color='C0')
+        plt.axis('equal')
+        plt.show()
+
+    input_path_0 = np.concatenate((input_path_0, sort_path(input_path_1)[1:, ]), axis=0)
+    input_path_0 = sort_path(input_path_0)
+    if do_plot:
+        plt.plot(input_path_0[:, 0], input_path_0[:, 1], '-o', alpha=0.5)
+        plt.axis('equal')
+        plt.show()
+
+    return sort_path(input_path_0)
