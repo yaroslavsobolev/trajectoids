@@ -551,7 +551,7 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declinatio
             print(f'Sampling function at x={x}')
             return mismatch_angle_for_smooth_bridge(x, input_path, npoints=npoints, return_error_messages=False,
                                                     min_curvature_radius=min_curvature_radius)
-        best_declination = brentq(left_hand_side, a=minangle, b=maxangle, maxiter=20, xtol=0.001, rtol=0.01)
+        best_declination = brentq(left_hand_side, a=minangle, b=maxangle, maxiter=20, xtol=0.001, rtol=0.004)
         print(f'Best declination: {best_declination}')
         print(f'Best mismatch: {left_hand_side(best_declination)}')
         return best_declination
@@ -846,12 +846,12 @@ def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1):
         fig.savefig(savetofilename, dpi=300)
     plt.show()
 
-def make_random_path(Npath = 150, factor = 2, factor2 = 0.8, seed=1, make_ends_horizontal=False, start_from_zero=True,
+def make_random_path(Npath = 150, amplitude = 2, factor2 = 0.8, seed=1, make_ends_horizontal=False, start_from_zero=True,
                      end_with_zero=False):
     np.random.seed(seed)
     xs = np.linspace(0, 2 * np.pi * factor2, Npath)
     ys = np.random.rand(Npath)
-    ys = savgol_filter(factor*ys, 31, 3)
+    ys = savgol_filter(amplitude * ys, 31, 3)
     ys = savgol_filter(ys, 7, 1)
     if start_from_zero:
         ys = ys - ys[0]

@@ -4,7 +4,7 @@ from compute_trajectoid import *
 #
 # target_folder='examples/little-prince'
 
-input_path_single_section = make_random_path(seed=1, factor=3, make_ends_horizontal='both', end_with_zero=True)
+input_path_single_section = make_random_path(seed=1, amplitude=3, make_ends_horizontal='both', end_with_zero=True)
 
 input_path_0 = double_the_path(input_path_single_section, do_plot=True)
 
