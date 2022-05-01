@@ -31,24 +31,24 @@ input_path_single_section = np.copy(input_path_0)
 # plt.plot(input_path_0[:,0], input_path_0[:, 1], 'x-', alpha=1)
 # plt.show()
 
-# input_path_1 = np.copy(input_path_0)
-# input_path_1[:,0] = 2*input_path_1[-1,0]-input_path_1[:,0]
-# # input_path_1[:,0] = input_path_1[-1,0] + input_path_1[:,0]
-# input_path_1[:,1] = -1*input_path_1[:,1]
-#
-# # input_path_1 = np.concatenate((input_path_0, np.flipud))
-# plt.plot(input_path_0[:,0], input_path_0[:,1], '-o')
-# plt.plot(input_path_1[:,0], input_path_1[:,1], '-o')
-# plt.axis('equal')
-# plt.show()
-#
-# input_path_0 = np.concatenate((input_path_0, sort_path(input_path_1)[1:,]), axis=0)
-# input_path_0 = sort_path(input_path_0)
-# plt.plot(input_path_0[:,0], input_path_0[:,1], '-o', alpha=0.5)
-# plt.axis('equal')
-# plt.show()
+input_path_1 = np.copy(input_path_0)
+input_path_1[:,0] = 2*input_path_1[-1,0]-input_path_1[:,0]
+# input_path_1[:,0] = input_path_1[-1,0] + input_path_1[:,0]
+input_path_1[:,1] = -1*input_path_1[:,1]
 
-input_path_0 = double_the_path(input_path_0, do_plot=True)
+# input_path_1 = np.concatenate((input_path_0, np.flipud))
+plt.plot(input_path_0[:,0], input_path_0[:,1], '-o')
+plt.plot(input_path_1[:,0], input_path_1[:,1], '-o')
+plt.axis('equal')
+plt.show()
+
+input_path_0 = np.concatenate((input_path_0, sort_path(input_path_1)[1:,]), axis=0)
+input_path_0 = sort_path(input_path_0)
+plt.plot(input_path_0[:,0], input_path_0[:,1], '-o', alpha=0.5)
+plt.axis('equal')
+plt.show()
+
+# input_path_0 = double_the_path(input_path_0, do_plot=True)
 
 #### Bridge the path
 do_plot = True
@@ -84,20 +84,6 @@ if do_plot:
 
 # plot_mismatch_map_for_scale_tweaking(input_path_0, kx_range=(0.8, 1.1), ky_range=(0.7, 1.1), vmax=0.1, signed_angle=True)
 
-def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
-    scale_max = scale_range[1]
-    scale_min = scale_range[0]
-    # if the sign of mismatch angle is same at the ends of the region -- there is no solution
-    if mismatch_angle_for_path(input_path_0 * scale_max) * mismatch_angle_for_path(input_path_0 * scale_min) > 0:
-        return False
-    def left_hand_side(x):  # the function whose root we want to find
-        print(f'Sampling function at x={x}')
-        return mismatch_angle_for_path(input_path_0 * x)
-
-    best_scale = brentq(left_hand_side, a=scale_min, b=scale_max, maxiter=20, xtol=0.00001, rtol=0.0001)
-    print(f'Minimized mismatch angle = {left_hand_side(best_scale)}')
-    return best_scale
-
 best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=(0.9, 1.05))
 
 input_path = best_scale * input_path_0
@@ -117,8 +103,8 @@ if do_plot:
                     tube_radius=tube_radius)
     mlab.show()
 
-np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
-np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
+# np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
+# np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
 
 #
 # # ### SINGLE ANGLE TEST

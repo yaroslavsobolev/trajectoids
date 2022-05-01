@@ -18,7 +18,7 @@ def make_path_nonuniform(xlen, r, Npath = 400):
     input_path = np.stack((xs, ys)).T
     return input_path
 
-def make_path(xlen, r, Npath = 400):
+def make_path(xlen, r, Npath = 400, do_double=True):
     # first linear section
     step_size = xlen/Npath
     overall_xs = np.linspace(0, xlen/2 - r, int(round(xlen/2 - r)/step_size))
@@ -40,7 +40,8 @@ def make_path(xlen, r, Npath = 400):
 
     input_path = np.stack((overall_xs, overall_ys)).T
 
-    input_path = double_the_path(input_path)
+    if do_double:
+        input_path = double_the_path(input_path)
 
     return input_path
 
@@ -90,8 +91,35 @@ plt.show()
 # data = make_path(2*np.pi, 0.5, Npath=150)
 # # # data = make_path(xlen=9.5, r=2.5)
 # trace_on_sphere(data, kx=0.5, ky=0.5, core_radius=1, do_plot=True)
+input_path = make_path(xlen=3.81, r=1.23, Npath=150)
+input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+_ = double_the_path(input_path_single_section, do_plot=True)
 
-data = make_path(xlen=3.81, r=1.23, Npath=150)
+best_scale = minimize_mismatch_by_scaling(input_path, scale_range=(0.9, 1.1))
+input_path = input_path * best_scale
+input_path_single_section = input_path_single_section * best_scale
+
+
 # data = make_path(2*np.pi, 0.5, Npath=150)
 # # # data = make_path(xlen=9.5, r=2.5)
-trace_on_sphere(data, kx=1, ky=1, core_radius=1, do_plot=True)
+# trace_on_sphere(data, kx=1, ky=1, core_radius=1, do_plot=True)
+sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
+sphere_trace_single_section = trace_on_sphere(input_path_single_section, kx=1, ky=1)
+core_radius = 1
+mlab.figure(size=(1024, 768), \
+            bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+tube_radius = 0.01
+plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+last_index = sphere_trace.shape[0] // 2
+l = mlab.plot3d(sphere_trace[last_index:, 0], sphere_trace[last_index:, 1], sphere_trace[last_index:, 2], color=(0, 0, 1),
+                tube_radius=tube_radius)
+l = mlab.plot3d(sphere_trace_single_section[:, 0],
+                sphere_trace_single_section[:, 1],
+                sphere_trace_single_section[:, 2], color=(0, 1, 0),
+                tube_radius=tube_radius)
+
+# make_orbit_animation(folder_for_frames='examples/penannular_1/orbit_frames', elevation=60)
+
+# for point_here in [sphere_trace_single_section[-1], sphe]:
+#     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
+mlab.show()

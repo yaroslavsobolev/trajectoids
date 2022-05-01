@@ -63,6 +63,16 @@ def better_mayavi_lights(fig):
         camera_light0.intensity = 0.5
         camera_light0.activate = True
 
+def make_orbit_animation(folder_for_frames, nframes=60, elevation=60):
+    mlab.view(elevation=elevation)
+    for frame_id, azimuth in enumerate(np.linspace(0, 359, nframes)):
+        mlab.view(azimuth=azimuth)
+        # camera_radius = 4
+        # mfig.scene.camera.position = [camera_radius*np.cos(azimuth), camera_radius*np.sin(azimuth), -2.30]
+        # print(mfig.actors)
+        # mfig.actors.actor.rotate_y(5)
+        mlab.savefig(f'{folder_for_frames}/{frame_id:08d}.png')
+
 def signed_angle_between_2d_vectors(vector1, vector2):
     """Calculate the signed angle between two 2-dimensional vectors using the atan2 formula.
     The angle is positive if rotation from vector1 to vector2 is counterclockwise, and negative
@@ -886,6 +896,20 @@ def get_scale_that_minimizes_end_to_end(input_path, minimal_scale=0.1):
     print(solution)
     return solution.x
 
+def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
+    scale_max = scale_range[1]
+    scale_min = scale_range[0]
+    # if the sign of mismatch angle is same at the ends of the region -- there is no solution
+    if mismatch_angle_for_path(input_path_0 * scale_max) * mismatch_angle_for_path(input_path_0 * scale_min) > 0:
+        return False
+    def left_hand_side(x):  # the function whose root we want to find
+        print(f'Sampling function at x={x}')
+        return mismatch_angle_for_path(input_path_0 * x)
+
+    best_scale = brentq(left_hand_side, a=scale_min, b=scale_max, maxiter=20, xtol=0.00001, rtol=0.0001)
+    print(f'Minimized mismatch angle = {left_hand_side(best_scale)}')
+    return best_scale
+
 def double_the_path(input_path_0, do_plot=False):
     # input_path_0 = input_path
     input_path_1 = np.copy(input_path_0)
@@ -895,9 +919,10 @@ def double_the_path(input_path_0, do_plot=False):
 
     # input_path_1 = np.concatenate((input_path_0, np.flipud))
     if do_plot:
-        plt.plot(input_path_0[:, 0], input_path_0[:, 1], '-', color='C2')
+        plt.plot(input_path_0[:, 0], input_path_0[:, 1], '-', color='C2')#, label='Asymmetric')
         plt.plot(input_path_1[:, 0], input_path_1[:, 1], '-', color='C0')
         plt.axis('equal')
+        # plt.legend(loc='upper left')
         plt.show()
 
     input_path_0 = np.concatenate((input_path_0, sort_path(input_path_1)[1:, ]), axis=0)

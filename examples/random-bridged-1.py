@@ -2,7 +2,7 @@ from compute_trajectoid import *
 
 target_folder='examples/random_bridged_1'
 
-input_path_0 = make_random_path(seed=1, make_ends_horizontal=False)
+input_path_0 = make_random_path(seed=2, make_ends_horizontal=False)
 
 #### Bridge the path
 do_plot = True
