@@ -106,36 +106,7 @@ if do_plot:
 # np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
 # np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
 
-#
-# # ### SINGLE ANGLE TEST
-# # declination_angle = np.pi/4 # -1.3156036312041406
-# # path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=True,
-# #                                                                make_animation=False, mlab_show=True)
-# # print(f'Is successful: {is_successful}')
-# # plot_bridged_path(path_with_bridge, savetofilename=False)
-#
-# ## BEST ANGLE TEST
-#
-# for netscale in np.linspace(optimal_netscale, 0, 20):
-#     print(f'Netscale={netscale}')
-#     input_path = netscale * input_path_0
-#     best_declination_angle = find_best_smooth_bridge(input_path, npoints=npoints, max_declination=np.pi/180*80,
-#                                                      min_curvature_radius=min_curvature_radius)
-#     if best_declination_angle:
-#         path_with_bridge, is_successful = make_smooth_bridge_candidate(best_declination_angle, input_path, npoints=npoints, do_plot=True,
-#                                                                        mlab_show = True, make_animation=True,
-#                                                                        min_curvature_radius=min_curvature_radius)
-#         print(f'Scale = {netscale}')
-#         print(f'Declination = {best_declination_angle}')
-#         # plot results
-#         plot_bridged_path(path_with_bridge, savetofilename=f'tests/figures/2d-path_netscale{netscale}.png', npoints=npoints)
-#         np.save(target_folder + '/folder_for_path/path_data.npy', path_with_bridge)
-#         np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([netscale]))
-#         break
-#     else:
-#         print('No solution found.')
-#
-#
+
 # ## Make cut meshes for trajectoid
 # input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
 # compute_shape(input_path, kx=1, ky=1,

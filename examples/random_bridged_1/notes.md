@@ -1,3 +1,10 @@
+## Optimization results
+
+Doubling method:
+
+    Minimized mismatch angle = -2.6439127092433114e-05
+    Best scale: 0.6387022944333781
+
 ## 3dsmax workflow ##
 
 Object sizes:
@@ -18,3 +25,10 @@ OBJ import options:
         - Flip ZY axis
     DISABLED:
         - everything else
+
+## 3D-printing
+Ultimaker Cura slicing settings:
+
+    X scale: 1612%
+    Y scale: 1612%
+    Z scale: 1675%
