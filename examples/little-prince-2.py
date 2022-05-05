@@ -31,24 +31,25 @@ input_path_single_section = np.copy(input_path_0)
 # plt.plot(input_path_0[:,0], input_path_0[:, 1], 'x-', alpha=1)
 # plt.show()
 
-input_path_1 = np.copy(input_path_0)
-input_path_1[:,0] = 2*input_path_1[-1,0]-input_path_1[:,0]
-# input_path_1[:,0] = input_path_1[-1,0] + input_path_1[:,0]
-input_path_1[:,1] = -1*input_path_1[:,1]
-
+# ## ==== for tests of various symmetries
+# input_path_1 = np.copy(input_path_0)
+# input_path_1[:,0] = 2*input_path_1[-1,0]-input_path_1[:,0]
+# # input_path_1[:,0] = input_path_1[-1,0] + input_path_1[:,0]
+# input_path_1[:,1] = -1*input_path_1[:,1]
+#
 # input_path_1 = np.concatenate((input_path_0, np.flipud))
-plt.plot(input_path_0[:,0], input_path_0[:,1], '-o')
-plt.plot(input_path_1[:,0], input_path_1[:,1], '-o')
-plt.axis('equal')
-plt.show()
+# plt.plot(input_path_0[:,0], input_path_0[:,1], '-o')
+# plt.plot(input_path_1[:,0], input_path_1[:,1], '-o')
+# plt.axis('equal')
+# plt.show()
+#
+# input_path_0 = np.concatenate((input_path_0, sort_path(input_path_1)[1:,]), axis=0)
+# input_path_0 = sort_path(input_path_0)
+# plt.plot(input_path_0[:,0], input_path_0[:,1], '-o', alpha=0.5)
+# plt.axis('equal')
+# plt.show()
 
-input_path_0 = np.concatenate((input_path_0, sort_path(input_path_1)[1:,]), axis=0)
-input_path_0 = sort_path(input_path_0)
-plt.plot(input_path_0[:,0], input_path_0[:,1], '-o', alpha=0.5)
-plt.axis('equal')
-plt.show()
-
-# input_path_0 = double_the_path(input_path_0, do_plot=True)
+input_path_0 = double_the_path(input_path_0, do_plot=True)
 
 #### Bridge the path
 do_plot = True

@@ -846,13 +846,13 @@ def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1):
         fig.savefig(savetofilename, dpi=300)
     plt.show()
 
-def make_random_path(Npath = 150, amplitude = 2, factor2 = 0.8, seed=1, make_ends_horizontal=False, start_from_zero=True,
-                     end_with_zero=False):
+def make_random_path(Npath = 150, amplitude = 2, x_span_in_2pis = 0.8, seed=1, make_ends_horizontal=False, start_from_zero=True,
+                     end_with_zero=False, savgom_window_1=31, savgol_window_2=7):
     np.random.seed(seed)
-    xs = np.linspace(0, 2 * np.pi * factor2, Npath)
+    xs = np.linspace(0, 2 * np.pi * x_span_in_2pis, Npath)
     ys = np.random.rand(Npath)
-    ys = savgol_filter(amplitude * ys, 31, 3)
-    ys = savgol_filter(ys, 7, 1)
+    ys = savgol_filter(amplitude * ys, savgom_window_1, 3)
+    ys = savgol_filter(ys, savgol_window_2, 1)
     if start_from_zero:
         ys = ys - ys[0]
     if end_with_zero:
