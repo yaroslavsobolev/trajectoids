@@ -52,10 +52,13 @@ if do_plot:
 #     else:
 #         print('No solution found.')
 
+#
+# ## Make cut meshes for trajectoid
+# path_with_bridge = np.load(target_folder + '/folder_for_path/path_data.npy')
+# compute_shape(path_with_bridge, kx=1, ky=1,
+#               folder_for_path=target_folder + '/folder_for_path',
+#               folder_for_meshes=target_folder + '/cut_meshes',
+#               core_radius=1, cut_size = 10)
 
-## Make cut meshes for trajectoid
 path_with_bridge = np.load(target_folder + '/folder_for_path/path_data.npy')
-compute_shape(path_with_bridge, kx=1, ky=1,
-              folder_for_path=target_folder + '/folder_for_path',
-              folder_for_meshes=target_folder + '/cut_meshes',
-              core_radius=1, cut_size = 10)
+plot_bridged_path(path_with_bridge, savetofilename=f'tests/figures/2d-path_netscale{netscale}.png', npoints=npoints)

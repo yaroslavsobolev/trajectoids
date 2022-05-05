@@ -333,6 +333,35 @@ def path_from_trace(sphere_trace, core_radius=1):
     position_vectors = np.array(position_vectors)
     return position_vectors
 
+def plot_three_path_periods(input_path, savetofile=False, plot_midpoints=False):
+    figtraj = plt.figure(10, figsize=(10, 5))
+    dataxlen = np.max(input_path[:, 0])
+
+    def plot_periods(data, linestyle, linewidth):
+        plt.plot(data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle, linewidth=linewidth)
+        plt.plot(dataxlen + data[:, 0], data[:, 1], color='black', alpha=1, linestyle=linestyle, linewidth=linewidth)
+        plt.plot(2 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
+                 linewidth=linewidth)
+        plt.plot(3 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
+                 linewidth=linewidth)
+
+    # plot_periods(data, '--', linewidth=0.5)
+    plot_periods(input_path, '-', linewidth=1)
+    # plot_periods(projection_centers, '-', linewidth=1)
+
+    for shift in dataxlen * np.arange(3):
+        plt.scatter(shift + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
+    # plt.scatter(dataxlen + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
+    if plot_midpoints:
+        midpoint_index = int(round(input_path.shape[0]/2))
+        for shift in dataxlen*np.arange(4):
+            plt.scatter(shift + input_path[midpoint_index, 0], input_path[midpoint_index, 1], s=35, facecolors='white', edgecolors='black')
+    plt.axis('equal')
+    if savetofile:
+        figtraj.savefig(f'{savetofile}.png', dpi=300)
+        figtraj.savefig(f'{savetofile}.eps')
+    plt.show()
+
 def bridge_two_points_by_arc(point1, point2, npoints = 10):
     '''points are 3d vectors from center of unit sphere to sphere surface'''
     # make sure that the lengths of input vectors are equal to unity

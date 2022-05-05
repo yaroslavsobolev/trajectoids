@@ -51,7 +51,6 @@ input_path_single_section = np.copy(input_path_0)
 
 input_path_0 = double_the_path(input_path_0, do_plot=True)
 
-#### Bridge the path
 do_plot = True
 npoints = 30
 min_curvature_radius = 0.4
@@ -104,6 +103,7 @@ if do_plot:
                     tube_radius=tube_radius)
     mlab.show()
 
+plot_three_path_periods(input_path, plot_midpoints=True, savetofile=target_folder + '/input_path')
 # np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
 # np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
 
