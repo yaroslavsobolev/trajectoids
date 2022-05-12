@@ -1,7 +1,6 @@
 from compute_trajectoid import *
 
-target_folder='examples/random_bridged_1'
-
+target_folder = 'examples/random_bridged_1'
 input_path_0 = make_random_path(seed=0, make_ends_horizontal=False, start_from_zero=True, end_with_zero=True, amplitude=3)
 
 #### Bridge the path
@@ -61,4 +60,5 @@ if do_plot:
 #               core_radius=1, cut_size = 10)
 
 path_with_bridge = np.load(target_folder + '/folder_for_path/path_data.npy')
-plot_bridged_path(path_with_bridge, savetofilename=f'tests/figures/2d-path_netscale{netscale}.png', npoints=npoints)
+# plot_three_path_periods(input_path, plot_midpoints=True, savetofile=target_folder + '/input_path')
+plot_bridged_path(path_with_bridge, savetofilename=f'examples/random_bridged_1/input_path.png', npoints=npoints)

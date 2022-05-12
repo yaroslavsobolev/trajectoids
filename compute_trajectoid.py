@@ -843,37 +843,108 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
     return res, is_successful
 
 def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1):
-    fig, ax = plt.subplots(figsize=(8, 2))
+    fig, ax = plt.subplots(figsize=(12, 2))
+    linewidth = 5
+    alphabridge = 0.3
     bridgelen = npoints * 5 - 5
     dxs = [0,
            - path[-1, 0],
-           path[-1, 0]]
+           path[-1, 0],
+           2*path[-1, 0]]
     dys = [0,
            - path[-1, 1] + path[0, 1],
-           - path[0, 1] + path[-1, 1]]
+           - path[0, 1] + path[-1, 1],
+           - path[0, 1] + 2*path[-1, 1]]
     for k in range(len(dxs)):
         dx = dxs[k]
         dy = dys[k]
+        if k == 0:
+            alpha = 1
+        else:
+            alpha = 1
         plt.plot(path[:, 0] + dx,
-                 path[:, 1] + dy, '-', alpha=1, color='C1', linewidth=2)
-        plt.plot(path[:-(bridgelen), 0] + dx,
-                 path[:-(bridgelen), 1] + dy, '-', alpha=1, color='C0', linewidth=2)
+                 path[:, 1] + dy, '-', alpha=alpha, color='black', linewidth=1, zorder=10)
+        plt.plot(path[-(bridgelen):, 0] + dx,
+                 path[-(bridgelen):, 1] + dy, '-', alpha=alphabridge, color='C1', linewidth=linewidth)
         plt.plot(path[-(bridgelen):-(bridgelen) + npoints - 1, 0] + dx,
-                 path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=1, color='red', linewidth=2)
+                 path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=alphabridge, color='red', linewidth=linewidth)
         plt.plot(path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 0] + dx,
-                 path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=1, color='red',
-                 linewidth=2)
+                 path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=alphabridge, color='red',
+                 linewidth=linewidth)
         plt.plot(path[-(npoints - 1):, 0] + dx,
-                 path[-(npoints - 1):, 1] + dy, '-', alpha=1, color='red',
-                 linewidth=2)
-    plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=10, alpha=0.8, color='black', zorder=100)
+                 path[-(npoints - 1):, 1] + dy, '-', alpha=alphabridge, color='red',
+                 linewidth=linewidth)
+    plt.scatter([path[0, 0], path[-1, 0], path[0, 0]+2*path[-1, 0]], [path[0, 1], path[-1, 1], 2*path[-1, 1]], s=35, alpha=0.8, color='black', zorder=100)
+    # plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=35, alpha=0.8, color='black', zorder=100)
 
     plt.axis('equal')
-    plt.xlim(-8, -8 + 25 * netscale)
+    plt.xlim(-8, -8 + 35 * netscale)
     ax.axis('off')
     if savetofilename:
         fig.savefig(savetofilename, dpi=300)
     plt.show()
+
+# def plot_three_path_periods(input_path, savetofile=False, plot_midpoints=False):
+#     figtraj = plt.figure(10, figsize=(10, 5))
+#     dataxlen = np.max(input_path[:, 0])
+#
+#     def plot_periods(data, linestyle, linewidth):
+#         plt.plot(data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle, linewidth=linewidth)
+#         plt.plot(dataxlen + data[:, 0], data[:, 1], color='black', alpha=1, linestyle=linestyle, linewidth=linewidth)
+#         plt.plot(2 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
+#                  linewidth=linewidth)
+#         plt.plot(3 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
+#                  linewidth=linewidth)
+#
+#     # plot_periods(data, '--', linewidth=0.5)
+#     plot_periods(input_path, '-', linewidth=1)
+#     # plot_periods(projection_centers, '-', linewidth=1)
+#
+#     for shift in dataxlen * np.arange(3):
+#         plt.scatter(shift + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
+#     # plt.scatter(dataxlen + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
+#     if plot_midpoints:
+#         midpoint_index = int(round(input_path.shape[0]/2))
+#         for shift in dataxlen*np.arange(4):
+#             plt.scatter(shift + input_path[midpoint_index, 0], input_path[midpoint_index, 1], s=35, facecolors='white', edgecolors='black')
+#     plt.axis('equal')
+#     if savetofile:
+#         figtraj.savefig(f'{savetofile}.png', dpi=300)
+#         figtraj.savefig(f'{savetofile}.eps')
+#     plt.show()
+#
+# def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1):
+#     fig, ax = plt.subplots(figsize=(8, 2))
+#     bridgelen = npoints * 5 - 5
+#     dxs = [0,
+#            - path[-1, 0],
+#            path[-1, 0]]
+#     dys = [0,
+#            - path[-1, 1] + path[0, 1],
+#            - path[0, 1] + path[-1, 1]]
+#     for k in range(len(dxs)):
+#         dx = dxs[k]
+#         dy = dys[k]
+#         plt.plot(path[:, 0] + dx,
+#                  path[:, 1] + dy, '-', alpha=1, color='C1', linewidth=2)
+#         plt.plot(path[:-(bridgelen), 0] + dx,
+#                  path[:-(bridgelen), 1] + dy, '-', alpha=1, color='C0', linewidth=2)
+#         plt.plot(path[-(bridgelen):-(bridgelen) + npoints - 1, 0] + dx,
+#                  path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=1, color='red', linewidth=2)
+#         plt.plot(path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 0] + dx,
+#                  path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=1, color='red',
+#                  linewidth=2)
+#         plt.plot(path[-(npoints - 1):, 0] + dx,
+#                  path[-(npoints - 1):, 1] + dy, '-', alpha=1, color='red',
+#                  linewidth=2)
+#     plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=10, alpha=0.8, color='black', zorder=100)
+#
+#     plt.axis('equal')
+#     plt.xlim(-8, -8 + 25 * netscale)
+#     ax.axis('off')
+#     if savetofilename:
+#         fig.savefig(savetofilename, dpi=300)
+#     plt.show()
 
 def make_random_path(Npath = 150, amplitude = 2, x_span_in_2pis = 0.8, seed=1, make_ends_horizontal=False, start_from_zero=True,
                      end_with_zero=False, savgom_window_1=31, savgol_window_2=7):

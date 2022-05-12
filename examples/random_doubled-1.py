@@ -34,6 +34,8 @@ if do_plot:
                     tube_radius=tube_radius)
     mlab.show()
 
+plot_three_path_periods(input_path, plot_midpoints=True, savetofile=target_folder + '/input_path')
+
 # np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
 # np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
 #

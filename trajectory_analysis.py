@@ -21,7 +21,7 @@ def number_of_files(target_dir):
 def convert_to_signal(raw_frame):
     return raw_frame[:,:,2].astype(np.float) - raw_frame[:,:,1].astype(np.float) + raw_frame[:,:,0].astype(np.float)
 
-def get_median_frame(min_frame, target_folder, step=10):
+def get_median_frame(min_frame, target_folder, nframes, step=10):
     list_of_frames = []
     for frame_id in range(0, nframes, step):
         print(f'Loading frame {frame_id} for background.')
@@ -38,7 +38,7 @@ def trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=0,
     makedir_if_needed(target_folder + '/processed_frames')
 
     #get background
-    background_frame = get_median_frame(min_frame, target_folder)
+    background_frame = get_median_frame(min_frame, target_folder, nframes=nframes)
 
     cmass_xs = []
     cmass_ys = []
@@ -104,13 +104,34 @@ def plot_experimental_trajectory(target_folder):
     xs = np.loadtxt(target_folder + '/trajectory_x.txt')
     ys = np.loadtxt(target_folder + '/trajectory_y.txt')
     f1 = plt.figure(1, figsize=(10,3))
-    plt.plot(xs, -1*ys)
+    plt.plot(xs, -1*ys, alpha=1)
     plt.axis('equal')
     f1.savefig(target_folder + '/trajectory_plot.png', dpi=300, transparent=True)
     plt.show()
 
 
 if __name__ == '__main__':
-    target_folder = 'examples/little-prince-2/video'
-    # trace_trajectory_from_video_frames(threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # target_folder = 'examples/little-prince-2/video'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # plot_experimental_trajectory(target_folder)
+
+    # target_folder = 'examples/random_bridged_1/video'
+    # # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # plot_experimental_trajectory(target_folder)
+
+    target_folder = 'examples/random_doubled_1/video'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
     plot_experimental_trajectory(target_folder)
+    # this is for custong coloring of bouncing parts
+    # bouncy_regions = [[20, 30], [40, 70]]
+    # xs = np.loadtxt(target_folder + '/trajectory_x.txt')
+    # ys = np.loadtxt(target_folder + '/trajectory_y.txt')
+    # f1 = plt.figure(1, figsize=(10,3))
+    # plt.plot(xs, -1*ys, alpha=1)
+    # for bounce_region in bouncy_regions:
+    #     plt.plot(xs[bounce_region[0]:bounce_region[1]],
+    #              -1 * ys[bounce_region[0]:bounce_region[1]],
+    #              alpha=1, color='C2')
+    # plt.axis('equal')
+    # f1.savefig(target_folder + '/trajectory_plot.png', dpi=300, transparent=True)
+    # plt.show()

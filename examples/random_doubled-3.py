@@ -20,9 +20,12 @@ def window_function(x, windowlen):
 #
 target_folder='examples/random_doubled_3'
 
+input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
+plot_three_path_periods(input_path, plot_midpoints=True, savetofile=target_folder + '/input_path')
+
 # input_path_single_section = make_random_path(seed=1, amplitude=3, make_ends_horizontal='both', end_with_zero=True)
-input_path_single_section = make_random_path(seed=1, make_ends_horizontal=False, start_from_zero=True, end_with_zero=True, amplitude=5
-                                             ,savgom_window_1=31, savgol_window_2=7)
+input_path_single_section = make_random_path(seed=1, make_ends_horizontal=False, start_from_zero=True, end_with_zero=True, amplitude=3.5,
+                                             savgom_window_1=41, savgol_window_2=5)
 
 spl = UnivariateSpline(input_path_single_section[:,0], input_path_single_section[:,1])
 spl.set_smoothing_factor(0.7)
@@ -73,12 +76,12 @@ if do_plot:
                     tube_radius=tube_radius)
     mlab.show()
 
-np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
-np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
-
-## Make cut meshes for trajectoid
-input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
-compute_shape(input_path, kx=1, ky=1,
-              folder_for_path=target_folder + '/folder_for_path',
-              folder_for_meshes=target_folder + '/cut_meshes',
-              core_radius=1, cut_size = 10)
+# np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
+# np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
+#
+# ## Make cut meshes for trajectoid
+# input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
+# compute_shape(input_path, kx=1, ky=1,
+#               folder_for_path=target_folder + '/folder_for_path',
+#               folder_for_meshes=target_folder + '/cut_meshes',
+#               core_radius=1, cut_size = 10)
