@@ -111,18 +111,19 @@ def plot_experimental_trajectory(target_folder):
 
 
 if __name__ == '__main__':
-    # target_folder = 'examples/little-prince-2/video'
-    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
-    # plot_experimental_trajectory(target_folder)
+    target_folder = 'examples/little-prince-2/video'
+    trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    plot_experimental_trajectory(target_folder)
 
     # target_folder = 'examples/random_bridged_1/video'
     # # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
     # plot_experimental_trajectory(target_folder)
 
-    target_folder = 'examples/random_doubled_1/video'
+    # target_folder = 'examples/random_doubled_1/video'
     # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
-    plot_experimental_trajectory(target_folder)
-    # this is for custong coloring of bouncing parts
+    # plot_experimental_trajectory(target_folder)
+
+    ### this is for custong coloring of bouncing parts
     # bouncy_regions = [[20, 30], [40, 70]]
     # xs = np.loadtxt(target_folder + '/trajectory_x.txt')
     # ys = np.loadtxt(target_folder + '/trajectory_y.txt')
@@ -135,3 +136,11 @@ if __name__ == '__main__':
     # plt.axis('equal')
     # f1.savefig(target_folder + '/trajectory_plot.png', dpi=300, transparent=True)
     # plt.show()
+
+    # target_folder = 'examples/random_doubled_3/video'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # plot_experimental_trajectory(target_folder)
+
+    # target_folder = 'examples/random_doubled_4/video'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # plot_experimental_trajectory(target_folder)
