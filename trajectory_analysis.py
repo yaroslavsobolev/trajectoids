@@ -5,6 +5,9 @@ from skimage import io
 from skimage.morphology import convex_hull_image, remove_small_objects
 from scipy.ndimage.measurements import center_of_mass
 from skimage.measure import label
+from scipy import interpolate
+from scipy.optimize import curve_fit
+from compute_trajectoid import rotate_2d
 import os
 
 def makedir_if_needed(path):
@@ -109,11 +112,70 @@ def plot_experimental_trajectory(target_folder):
     f1.savefig(target_folder + '/trajectory_plot.png', dpi=300, transparent=True)
     plt.show()
 
+def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_folder = 'examples/random_doubled_3/video2'):
+    input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
+    # make interpolator for the true path
+    dataxlen = np.max(input_path[:, 0])
+    true_path = np.vstack( (input_path[:-1, :] + np.array([dataxlen * i, 0]) for i in range(4)) )
+    plt.plot(true_path[:, 0], true_path[:, 1], '-', alpha=0.4)
+    # plt.show()
+    true_path_interp = interpolate.interp1d(true_path[:, 0], true_path[:, 1])
+
+    # experimental trajectory
+    cropfrom = 100
+    cropto = -50
+    xs = np.loadtxt(video_folder + '/trajectory_x.txt')[cropfrom:cropto]
+    ys = -1*np.loadtxt(video_folder + '/trajectory_y.txt')[cropfrom:cropto]
+    ys = ys - ys[0]
+    xs = xs - xs[0]
+
+    initial_scale = 1.1e-2
+    x0 = 6.5# - 1.1
+    y0 = 0.1# + 1
+    plt.scatter(x0 + xs * initial_scale, y0 + ys * initial_scale, alpha=0.5, color='C1')
+    plt.axis('equal')
+    plt.show()
+
+    # match scale, rotation and shift
+    def func(x, scale, angle, x0, y0):
+        data_rotated = np.copy(true_path)
+        for i in range(data_rotated.shape[0]):
+            data_rotated[i, :] = rotate_2d(data_rotated[i, :], angle)
+        true_path_interp = interpolate.interp1d(data_rotated[:, 0], data_rotated[:, 1], fill_value='extrapolate')
+        y_here = (true_path_interp(x*scale + x0) - y0) / scale
+        return y_here
+
+
+    plt.scatter(xs, ys, alpha=0.5, color='C1')
+    plt.plot(xs, func(xs, initial_scale, 0, x0, y0), color='C0')
+    plt.axis('equal')
+    plt.show()
+
+    popt, pcov = curve_fit(func, xs, ys, p0=(initial_scale, 0, x0, y0),
+                           bounds = [[0, -np.pi/4, -np.inf, -np.inf], [np.inf, np.pi/4, np.inf, np.inf]])
+    print(popt)
+    plt.plot(xs, ys, alpha=0.5, color='C0')
+    plt.plot(xs, func(xs, *popt), 'g--',
+             label=f'{popt}', alpha=0.5)
+    plt.legend()
+    plt.axis('equal')
+    plt.show()
+
+    scale, angle, x0, y0 = popt
+    plt.plot(true_path[:, 0], true_path[:, 1], '-', color='black', alpha=0.5)
+    traj_vectors = np.vstack((x0 + xs * scale, y0 + ys * scale)).T
+    for i in range(traj_vectors.shape[0]):
+        traj_vectors[i, :] = rotate_2d(traj_vectors[i, :], -angle)
+    # plt.plot(, y0 + ys * scale, alpha=0.5, color='C1')
+    plt.plot(traj_vectors[:, 0], traj_vectors[:, 1], color='C0', alpha=0.5)
+    plt.axis('equal')
+    plt.show()
+
 
 if __name__ == '__main__':
-    target_folder = 'examples/little-prince-2/video'
-    trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
-    plot_experimental_trajectory(target_folder)
+    # target_folder = 'examples/little-prince-2/video'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # plot_experimental_trajectory(target_folder)
 
     # target_folder = 'examples/random_bridged_1/video'
     # # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
@@ -144,3 +206,14 @@ if __name__ == '__main__':
     # target_folder = 'examples/random_doubled_4/video'
     # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
     # plot_experimental_trajectory(target_folder)
+
+    # target_folder = 'examples/random_doubled_5/video'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # plot_experimental_trajectory(target_folder)
+
+    # target_folder = 'examples/random_doubled_3/video2'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # plot_experimental_trajectory(target_folder)
+
+    target_folder = 'examples/random_doubled_3/video2'
+    match_scale_and_angle()
