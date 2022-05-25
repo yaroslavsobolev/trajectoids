@@ -112,29 +112,32 @@ def plot_experimental_trajectory(target_folder):
     f1.savefig(target_folder + '/trajectory_plot.png', dpi=300, transparent=True)
     plt.show()
 
-def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_folder = 'examples/random_doubled_3/video2'):
+def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_folder = 'examples/random_doubled_3/video2',
+                          cropfrom=100, cropto = -50, x0 = 6.5, # - 1.1
+                          y0 = 0.1, # + 1
+                          initial_scale=1.1e-2,
+                          initial_angle=0,
+                          do_plot=True
+                          ):
     input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
     # make interpolator for the true path
     dataxlen = np.max(input_path[:, 0])
     true_path = np.vstack( (input_path[:-1, :] + np.array([dataxlen * i, 0]) for i in range(4)) )
-    plt.plot(true_path[:, 0], true_path[:, 1], '-', alpha=0.4)
+    if do_plot:
+        plt.plot(true_path[:, 0], true_path[:, 1], '-', alpha=0.4)
     # plt.show()
     true_path_interp = interpolate.interp1d(true_path[:, 0], true_path[:, 1])
 
     # experimental trajectory
-    cropfrom = 100
-    cropto = -50
     xs = np.loadtxt(video_folder + '/trajectory_x.txt')[cropfrom:cropto]
     ys = -1*np.loadtxt(video_folder + '/trajectory_y.txt')[cropfrom:cropto]
     ys = ys - ys[0]
     xs = xs - xs[0]
 
-    initial_scale = 1.1e-2
-    x0 = 6.5# - 1.1
-    y0 = 0.1# + 1
-    plt.scatter(x0 + xs * initial_scale, y0 + ys * initial_scale, alpha=0.5, color='C1')
-    plt.axis('equal')
-    plt.show()
+    if do_plot:
+        plt.scatter(x0 + xs * initial_scale, y0 + ys * initial_scale, alpha=0.5, color='C1')
+        plt.axis('equal')
+        plt.show()
 
     # match scale, rotation and shift
     def func(x, scale, angle, x0, y0):
@@ -145,31 +148,36 @@ def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_fol
         y_here = (true_path_interp(x*scale + x0) - y0) / scale
         return y_here
 
+    if do_plot:
+        plt.scatter(xs, ys, alpha=0.5, color='C1')
+        plt.plot(xs, func(xs, initial_scale, 0, x0, y0), color='C0')
+        plt.axis('equal')
+        plt.show()
 
-    plt.scatter(xs, ys, alpha=0.5, color='C1')
-    plt.plot(xs, func(xs, initial_scale, 0, x0, y0), color='C0')
-    plt.axis('equal')
-    plt.show()
-
-    popt, pcov = curve_fit(func, xs, ys, p0=(initial_scale, 0, x0, y0),
+    popt, pcov = curve_fit(func, xs, ys, p0=(initial_scale, initial_angle, x0, y0),
                            bounds = [[0, -np.pi/4, -np.inf, -np.inf], [np.inf, np.pi/4, np.inf, np.inf]])
     print(popt)
-    plt.plot(xs, ys, alpha=0.5, color='C0')
-    plt.plot(xs, func(xs, *popt), 'g--',
-             label=f'{popt}', alpha=0.5)
-    plt.legend()
-    plt.axis('equal')
-    plt.show()
+    if do_plot:
+        plt.plot(xs, ys, alpha=0.5, color='C0')
+        plt.plot(xs, func(xs, *popt), 'g--',
+                 label=f'{popt}', alpha=0.5)
+        plt.legend()
+        plt.axis('equal')
+        plt.show()
 
     scale, angle, x0, y0 = popt
-    plt.plot(true_path[:, 0], true_path[:, 1], '-', color='black', alpha=0.5)
+    print(f'Scale is: {scale}')
+    if do_plot:
+        plt.plot(true_path[:, 0], true_path[:, 1], '-', color='black', alpha=0.5)
     traj_vectors = np.vstack((x0 + xs * scale, y0 + ys * scale)).T
     for i in range(traj_vectors.shape[0]):
         traj_vectors[i, :] = rotate_2d(traj_vectors[i, :], -angle)
     # plt.plot(, y0 + ys * scale, alpha=0.5, color='C1')
-    plt.plot(traj_vectors[:, 0], traj_vectors[:, 1], color='C0', alpha=0.5)
-    plt.axis('equal')
-    plt.show()
+    if do_plot:
+        plt.plot(traj_vectors[:, 0], traj_vectors[:, 1], color='C0', alpha=0.5)
+        plt.axis('equal')
+        plt.show()
+    return true_path, traj_vectors
 
 
 if __name__ == '__main__':
@@ -215,5 +223,72 @@ if __name__ == '__main__':
     # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
     # plot_experimental_trajectory(target_folder)
 
+    # COMPARING 6D POSE TRACKING TO CENTROID-OF-SHADOW METHOD
     target_folder = 'examples/random_doubled_3/video2'
-    match_scale_and_angle()
+    do_plot = False
+    true_path, traj_vectors_centroids = match_scale_and_angle(target_folder = 'examples/random_doubled_3',
+                                                              video_folder = 'examples/random_doubled_3/video2',
+                                                              cropfrom=120, cropto = -50,
+                                                              x0 = 6.8, # - 1.1
+                                                              y0 = 0.2, # + 1
+                                                              initial_scale=1.1e-2,
+                                                              initial_angle=0,
+                                                              do_plot=do_plot
+                                                              )
+    true_path, traj_vectors_fulltracking = match_scale_and_angle(target_folder = 'examples/random_doubled_3',
+                                                              video_folder = 'examples/random_doubled_3/video2/tracking',
+                                                              cropfrom=120, cropto = -50,
+                                                              x0 = 6.8,
+                                                              y0 = 0.2, # + 1
+                                                              initial_scale=55,
+                                                              initial_angle=0,
+                                                              do_plot=do_plot
+                                                              )
+    # convert everything to mmillimeters
+    units_to_mm = 1/0.010923799436747648 / 1920 * 335
+    x0 = 105
+    for points in [true_path, traj_vectors_centroids, traj_vectors_fulltracking]:
+        points[:, :] = points[:, :] * units_to_mm
+        points[:, 0] = points[:, 0] - x0
+    figscale_factor = 0.85
+    fig, axarr = plt.subplots(2,1, sharex=True, figsize=(14*figscale_factor, 2*3.4*figscale_factor))
+    true_from = 300
+    true_to = -250
+    ax = axarr[0]
+    linewidth = 0.75
+    alpha = 1
+    ax.plot(true_path[true_from:true_to, 0], true_path[true_from:true_to, 1], '-', color='black', alpha=alpha,
+            linewidth=linewidth, label='Theoretical (intended) in-plane path of the center of mass')
+    ax.plot(traj_vectors_centroids[:, 0], traj_vectors_centroids[:, 1], color='C0', alpha=alpha,
+            linewidth=linewidth, label='Experimental path of the centroid of visible shape')
+    ax.plot(traj_vectors_fulltracking[:, 0], traj_vectors_fulltracking[:, 1], color='C1', alpha=alpha,
+            linewidth=linewidth,
+            label='Experimental path of the center of mass from full tracking of position and orientation (6D pose tracking)')
+    ax.set_xlabel('X coordinate, mm')
+    ax.set_ylabel('Y coordinate, mm')
+    ax.legend()
+    ax.axis('equal')
+    ax.set_ylim(-5, 30)
+    ax.set_xlim(105-x0, 330-x0)
+    ax.xaxis.set_tick_params(labelbottom=True)
+
+    true_path_interp = interpolate.interp1d(true_path[:, 0], true_path[:, 1])
+    error_centroids = traj_vectors_centroids[:, 1] - true_path_interp(traj_vectors_centroids[:, 0])
+    error_fulltracking = traj_vectors_fulltracking[:, 1] - true_path_interp(traj_vectors_fulltracking[:, 0])
+    print(f'RMS error of centroids: {np.std(error_centroids)}')
+    print(f'RMS error of full tracking: {np.std(error_fulltracking)}')
+
+    ax = axarr[1]
+    ax.axhline(y=0, color='black')
+    ax.fill_between(x=traj_vectors_centroids[:, 0], y1=0, y2=error_centroids, color='C0', alpha=0.5,
+                    label='By centroid of visible shape')
+    ax.plot(traj_vectors_centroids[:, 0], error_centroids, color='C0', alpha=0.9)
+    ax.fill_between(x=traj_vectors_fulltracking[:, 0], y1=0, y2=error_fulltracking, color='C1', alpha=0.5,
+                    label='By 6D pose tracking')
+    ax.plot(traj_vectors_fulltracking[:, 0], error_fulltracking, color='C1', alpha=0.9)
+    ax.set_xlabel('X coordinate, mm')
+    ax.set_ylabel('Difference in Y coordinate\nbetween the experimenta path\nand the intended path, mm')
+    ax.legend(loc='upper center', title='Method of estimating the center of mass location:')
+    plt.tight_layout()
+    fig.savefig('examples/random_doubled_3/video2/comparison_of_cetroid_to_fulltracking.png', dpi=300)
+    plt.show()

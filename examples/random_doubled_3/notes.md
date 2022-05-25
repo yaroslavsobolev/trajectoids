@@ -20,11 +20,15 @@ OBJ import options:
     DISABLED:
         - everything else
 
+## 3d printing ##
+
 Ultimaker Cura slicing settings:
 
     X scale: 1617%
     Y scale: 1602%
     Z scale: 1606%
+
+## Experiments ##
 
 Slope angle:
 
@@ -37,3 +41,10 @@ Camera recording:
     Aperture: F/10
     iso: 1600
     Focal length: 105 mm
+
+## Analysis ##
+
+Errors of visible shape centroid vs. full 6D pose tracking:
+
+    RMS error of centroids: 0.8449805557450757 mm
+    RMS error of full tracking: 0.7647014634838443 mm
