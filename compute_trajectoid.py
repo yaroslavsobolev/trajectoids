@@ -176,7 +176,10 @@ def rotation_to_previous_point(i, data):
     previous_point = data[i - 1]
     return rotation_from_point_to_point(point, previous_point)
 
-def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True):
+import sys
+sys.setrecursionlimit(3000)
+
+def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True, verbose=False):
     if use_cache:
         global last_path
         global cached_rotations_to_origin
@@ -214,10 +217,12 @@ def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True
             if np.isclose(data, last_path).all():
                 cache_have_same_path = True
                 cached_rotations_to_origin[index_in_trajectory] = net_rotation_matrix
-                print(f'Updated cache, index_in_trajectory = {index_in_trajectory}')
+                if verbose:
+                    print(f'Updated cache, index_in_trajectory = {index_in_trajectory}')
         if not cache_have_same_path:
             # clear cache
-            print('Clearing cache.')
+            if verbose:
+                print('Clearing cache.')
             cached_rotations_to_origin = dict()
             cached_rotations_to_origin[index_in_trajectory] = net_rotation_matrix
             last_path = np.copy(data)
@@ -1045,7 +1050,7 @@ def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
         print(f'Sampling function at x={x}')
         return mismatch_angle_for_path(input_path_0 * x)
 
-    best_scale = brentq(left_hand_side, a=scale_min, b=scale_max, maxiter=20, xtol=0.00001, rtol=0.0001)
+    best_scale = brentq(left_hand_side, a=scale_min, b=scale_max, maxiter=80, xtol=0.00001, rtol=0.00005)
     print(f'Minimized mismatch angle = {left_hand_side(best_scale)}')
     return best_scale
 

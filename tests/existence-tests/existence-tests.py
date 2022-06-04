@@ -114,6 +114,7 @@ target_folder='tests/existence-tests/path_folder'
 # input_path_single_section = make_random_path(seed=1, amplitude=3, make_ends_horizontal='both', end_with_zero=True)
 
 input_path_single_section = make_brownian_path(seed=0, Npath=150, travel_length=0.1)
+input_path_single_section = upsample_path(input_path_single_section, by_factor=5)
 
 input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=True)
 
@@ -122,7 +123,7 @@ input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=True)
 # plt.show()
 #
 best_scale = 20
-plotting_upsample_factor = 2
+plotting_upsample_factor = 1
 t0 = time.time()
 sphere_trace = trace_on_sphere(upsample_path(best_scale * input_path_0, by_factor=plotting_upsample_factor),
                                kx=1, ky=1)
@@ -164,8 +165,11 @@ print(f'Best scale: {best_scale}')
 # Best scale: 0.6387022944333781
 
 input_path = best_scale * input_path_0
-sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
-sphere_trace_single_section = trace_on_sphere(input_path_single_section * best_scale, kx=1, ky=1)
+plotting_upsample_factor = 1
+sphere_trace = trace_on_sphere(upsample_path(input_path, by_factor=10),
+                               kx=1, ky=1)
+sphere_trace_single_section = trace_on_sphere(upsample_path(input_path_single_section * best_scale, by_factor=10),
+                                              kx=1, ky=1)
 if do_plot:
     core_radius = 1
     mlab.figure(size=(1024, 768), \
