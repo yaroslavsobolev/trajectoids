@@ -106,7 +106,7 @@ l = mlab.plot3d(sphere_trace_single_section[:, 0],
                 sphere_trace_single_section[:, 2], color=(0, 1, 0),
                 tube_radius=tube_radius)
 align_view(mfig)
-mlab.savefig('examples/penannular_proof/full_trace.png')
+# mlab.savefig('examples/penannular_proof/full_trace.png')
 mlab.show()
 
 def make_animation_of_scaling_sweep():
@@ -122,9 +122,11 @@ def make_animation_of_scaling_sweep():
     plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
     align_view(mfig)
     nframes = 100
+    mismatch_angles = []
     for frame_id, scale in enumerate(np.linspace(0.1*best_scale, best_scale, nframes)):
         input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * scale
         sphere_trace_single_section = trace_on_sphere(input_path_single_section, kx=1, ky=1)
+        mismatch_angles.append(mismatch_angle_for_path(input_path_single_section))
         object1 = mlab.plot3d(sphere_trace_single_section[:, 0],
                         sphere_trace_single_section[:, 1],
                         sphere_trace_single_section[:, 2], color=(0, 1, 0),
@@ -142,8 +144,24 @@ def make_animation_of_scaling_sweep():
             x.remove()
         for x in points_list:
             x.remove()
+    return np.array(mismatch_angles)
 
+def mismatches_for_all_scales():
+    tube_radius = 0.01
+    core_radius = 1
 
+    best_scale = 1.006534368463883
+    input_path = make_path(xlen=3.81, r=1.23, Npath=150) * best_scale
+    input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * best_scale
+
+    nframes = 100
+    mismatch_angles = []
+    sweeped_scales = np.linspace(0.1 * best_scale, best_scale, nframes)
+    for frame_id, scale in enumerate(sweeped_scales):
+        print(scale)
+        input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * scale
+        mismatch_angles.append(mismatch_angle_for_path(input_path_single_section))
+    return sweeped_scales, np.array(mismatch_angles)
 
 def make_animation_of_rotational_symmetry():
     tube_radius = 0.01
@@ -196,6 +214,10 @@ def make_animation_of_rotational_symmetry():
         if frame_id > 0:
             for x in [object1]:
                 x.remove()
+
+sweeped_scales, mismatch_angles = mismatches_for_all_scales()
+plt.plot(sweeped_scales, np.abs(mismatch_angles))
+plt.show()
 
 # make_animation_of_rotational_symmetry()
 

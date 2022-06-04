@@ -11,7 +11,11 @@ from scipy import interpolate
 from sklearn.metrics import pairwise_distances
 from numba import jit
 from scipy.signal import savgol_filter
-# from great_circle_arc import intersects
+from functools import lru_cache
+# from great_circle_arc import intersects\
+
+last_path = np.array([0, 0])
+cached_rotations_to_origin = dict()
 
 @jit(nopython=True)
 def numbacross(a, b):
@@ -172,20 +176,52 @@ def rotation_to_previous_point(i, data):
     previous_point = data[i - 1]
     return rotation_from_point_to_point(point, previous_point)
 
-def rotation_to_origin(index_in_trajectory, data):
-    theta_sum = 0
-    if index_in_trajectory == 0:
-        net_rotation_matrix = trimesh.transformations.identity_matrix()
-    else:
-        net_rotation_matrix, theta = rotation_to_previous_point(index_in_trajectory, data)
-        theta_sum += theta
-        # go through the trajectory backwards and do consecutive rotations
-        for i in reversed(list(range(1, index_in_trajectory))):
-            matrix_of_rotation_to_previous_point, theta = rotation_to_previous_point(i, data)
+def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True):
+    if use_cache:
+        global last_path
+        global cached_rotations_to_origin
+        if data.shape == last_path.shape:
+            if np.isclose(data, last_path).all():
+                if index_in_trajectory in cached_rotations_to_origin.keys():
+                    return cached_rotations_to_origin[index_in_trajectory]
+
+    if not recursive:
+        theta_sum = 0
+        if index_in_trajectory == 0:
+            net_rotation_matrix = trimesh.transformations.identity_matrix()
+        else:
+            net_rotation_matrix, theta = rotation_to_previous_point(index_in_trajectory, data)
             theta_sum += theta
-            net_rotation_matrix = trimesh.transformations.concatenate_matrices(matrix_of_rotation_to_previous_point,
-                                                                           net_rotation_matrix)
-    # print('Sum_theta = {0}'.format(theta_sum))
+            # go through the trajectory backwards and do consecutive rotations
+            for i in reversed(list(range(1, index_in_trajectory))):
+                matrix_of_rotation_to_previous_point, theta = rotation_to_previous_point(i, data)
+                theta_sum += theta
+                net_rotation_matrix = trimesh.transformations.concatenate_matrices(matrix_of_rotation_to_previous_point,
+                                                                               net_rotation_matrix)
+    elif recursive:
+        theta_sum = 0
+        if index_in_trajectory == 0:
+            net_rotation_matrix = trimesh.transformations.identity_matrix()
+        else:
+            net_rotation_matrix, theta = rotation_to_previous_point(index_in_trajectory, data)
+            net_rotation_matrix = trimesh.transformations.concatenate_matrices(rotation_to_origin(index_in_trajectory-1,
+                                                                                                  data, use_cache, recursive),
+                                                                               net_rotation_matrix)
+    # add to cache
+    if use_cache:
+        cache_have_same_path = False
+        if data.shape == last_path.shape:
+            if np.isclose(data, last_path).all():
+                cache_have_same_path = True
+                cached_rotations_to_origin[index_in_trajectory] = net_rotation_matrix
+                print(f'Updated cache, index_in_trajectory = {index_in_trajectory}')
+        if not cache_have_same_path:
+            # clear cache
+            print('Clearing cache.')
+            cached_rotations_to_origin = dict()
+            cached_rotations_to_origin[index_in_trajectory] = net_rotation_matrix
+            last_path = np.copy(data)
+
     return net_rotation_matrix
 
 def plot_mismatch_map_for_scale_tweaking(data0, N=30, M=30, kx_range=(0.1, 2), ky_range=(0.1, 2), vmin=0, vmax=np.pi,
@@ -1001,6 +1037,9 @@ def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
     scale_min = scale_range[0]
     # if the sign of mismatch angle is same at the ends of the region -- there is no solution
     if mismatch_angle_for_path(input_path_0 * scale_max) * mismatch_angle_for_path(input_path_0 * scale_min) > 0:
+        print('Sign of mismatch is the same on both sides of the interval.')
+        print(f'Mismatch at max scale = {mismatch_angle_for_path(input_path_0 * scale_min)}')
+        print(f'Mismatch at min scale = {mismatch_angle_for_path(input_path_0 * scale_max)}')
         return False
     def left_hand_side(x):  # the function whose root we want to find
         print(f'Sampling function at x={x}')
@@ -1010,7 +1049,7 @@ def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
     print(f'Minimized mismatch angle = {left_hand_side(best_scale)}')
     return best_scale
 
-def double_the_path(input_path_0, do_plot=False):
+def double_the_path(input_path_0, do_plot=False, do_sort=True):
     # input_path_0 = input_path
     input_path_1 = np.copy(input_path_0)
     # input_path_1[:,0] = 2*input_path_1[-1,0]-input_path_1[:,0]
@@ -1026,7 +1065,8 @@ def double_the_path(input_path_0, do_plot=False):
         plt.show()
 
     input_path_0 = np.concatenate((input_path_0, sort_path(input_path_1)[1:, ]), axis=0)
-    input_path_0 = sort_path(input_path_0)
+    if do_sort:
+        input_path_0 = sort_path(input_path_0)
     if do_plot:
         plt.plot(input_path_0[:, 0], input_path_0[:, 1], '-o', alpha=0.5)
         plt.axis('equal')
