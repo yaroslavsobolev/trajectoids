@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import mayavi
 from scipy.interpolate import interp1d
+from matplotlib.collections import LineCollection
+from matplotlib.colors import ListedColormap, BoundaryNorm
 
 from compute_trajectoid import *
 
@@ -86,7 +88,7 @@ def mismatches_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 1
     for frame_id, scale in enumerate(sweeped_scales):
         print(f'Computing mismatch for scale {scale}')
         input_path_single_section = input_path * scale
-        mismatch_angles.append(mismatch_angle_for_path(input_path_single_section))
+        mismatch_angles.append(mismatch_angle_for_path(input_path_single_section, recursive=False, use_cache=False))
     return sweeped_scales, np.array(mismatch_angles)
 
 def make_brownian_path(Npath = 150, seed=0, travel_length=0.1, end_with_zero=True):
@@ -109,80 +111,154 @@ def upsample_path(input_path, by_factor=10):
     new_ys = interp1d(old_indices, input_path[:, 1])(new_indices)
     return np.stack((new_xs, new_ys)).T
 
-target_folder='tests/existence-tests/path_folder'
+def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brownian_path_1/figures',
+                              best_scale = 24.810359103416662):
+    target_folder='tests/existence-tests/path_folder'
 
-# input_path_single_section = make_random_path(seed=1, amplitude=3, make_ends_horizontal='both', end_with_zero=True)
+    # input_path_single_section = make_random_path(seed=1, amplitude=3, make_ends_horizontal='both', end_with_zero=True)
+    if path_type == 'brownian':
+        input_path_single_section = make_brownian_path(seed=0, Npath=150, travel_length=0.1)
+        input_path_single_section = upsample_path(input_path_single_section, by_factor=5)
 
-input_path_single_section = make_brownian_path(seed=0, Npath=150, travel_length=0.1)
-input_path_single_section = upsample_path(input_path_single_section, by_factor=5)
+        input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=False)
 
-input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=True)
+    # plotting with color along the line
+    x = input_path_0[:, 0]
+    y = input_path_0[:, 1]
+    length_from_start_to_here = np.cumsum( np.sqrt((np.diff(x)**2 + np.diff(y)**2)) )
+    length_from_start_to_here = np.insert(length_from_start_to_here, 0, 0)
+    length_from_start_to_here = np.remainder(length_from_start_to_here, np.max(length_from_start_to_here)/2)
+    length_from_start_to_here /= np.max(length_from_start_to_here)
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    fig, axs = plt.subplots()
+    # Create a continuous norm to map from data points to colors
+    norm = plt.Normalize(length_from_start_to_here.min(), length_from_start_to_here.max())
+    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    # Set the values used for colormapping
+    lc.set_array(length_from_start_to_here)
+    lc.set_linewidth(1)
+    line = axs.add_collection(lc)
+    # fig.colorbar(line, ax=axs[0])
+    for point in [input_path_single_section[0], input_path_single_section[-1], input_path_0[-1]]:
+        plt.scatter(point[0], point[1], color='black', s=10)
+    # plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1], '-', color=colors)  # , label='Asymmetric')
+    # plt.plot(input_path_0[:, 0], input_path_0[:, 1], '-', color='C0')
+    # plot circle showing relative diameter of the sphere
+    circle1 = plt.Circle((-1.7, -0.6), 1/best_scale, color='C1')
+    axs.add_patch(circle1)
+    plt.axis('equal')
+    # cbar = fig.colorbar(line, ax=axs)
+    # cbar.set_label('Distance along the period')
+    fig.savefig(path_for_figs + '/brownian_path.png', dpi=300)
+    plt.show()
 
-# upsampled_path = upsample_path(input_path_0)
-# plt.plot(upsampled_path[:, 0], upsampled_path[:, 1], 'o-', alpha=0.5)
-# plt.show()
-#
-best_scale = 20
-plotting_upsample_factor = 1
-t0 = time.time()
-sphere_trace = trace_on_sphere(upsample_path(best_scale * input_path_0, by_factor=plotting_upsample_factor),
-                               kx=1, ky=1)
-sphere_trace_single_section = trace_on_sphere(upsample_path(input_path_single_section * best_scale,
-                                                            by_factor=plotting_upsample_factor),
-                                              kx=1, ky=1)
-print(f'Seconds passed: {time.time() - t0:.3f}')
-print('Mlab plot begins...')
-core_radius = 1
-last_index = sphere_trace.shape[0] // 2
-mlab.figure(size=(1024, 768), \
-            bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
-tube_radius = 0.01
-plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-l = mlab.plot3d(sphere_trace[last_index:, 0],
-                sphere_trace[last_index:, 1],
-                sphere_trace[last_index:, 2], color=(0, 0, 1),
-                tube_radius=tube_radius)
-l = mlab.plot3d(sphere_trace_single_section[:, 0],
-                sphere_trace_single_section[:, 1],
-                sphere_trace_single_section[:, 2], color=(0, 1, 0),
-                tube_radius=tube_radius)
-mlab.show()
-
-
-# sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_single_section, minscale=24.5, maxscale=25.1)
-sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=24, maxscale=25)
-plt.plot(sweeped_scales, np.abs(mismatch_angles))
-plt.plot(sweeped_scales, mismatch_angles)
-plt.show()
-
-
-do_plot = True
-npoints = 30
-
-best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=(24.7, 24.9))
-print(f'Best scale: {best_scale}')
-# Minimized mismatch angle = -2.6439127092433114e-05
-# Best scale: 0.6387022944333781
-
-input_path = best_scale * input_path_0
-plotting_upsample_factor = 1
-sphere_trace = trace_on_sphere(upsample_path(input_path, by_factor=10),
-                               kx=1, ky=1)
-sphere_trace_single_section = trace_on_sphere(upsample_path(input_path_single_section * best_scale, by_factor=10),
-                                              kx=1, ky=1)
-if do_plot:
+    # upsampled_path = upsample_path(input_path_0)
+    # plt.plot(upsampled_path[:, 0], upsampled_path[:, 1], 'o-', alpha=0.5)
+    # plt.show()
+    #
+    plotting_upsample_factor = 1
+    t0 = time.time()
+    sphere_trace = trace_on_sphere(upsample_path(best_scale * input_path_0, by_factor=plotting_upsample_factor),
+                                   kx=1, ky=1)
+    sphere_trace_single_section = trace_on_sphere(upsample_path(input_path_single_section * best_scale,
+                                                                by_factor=plotting_upsample_factor),
+                                                  kx=1, ky=1)
+    print(f'Seconds passed: {time.time() - t0:.3f}')
+    print('Mlab plot begins...')
     core_radius = 1
+    last_index = sphere_trace.shape[0] // 2
     mlab.figure(size=(1024, 768), \
                 bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
     tube_radius = 0.01
     plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+    # l = mlab.plot3d(sphere_trace[last_index:, 0],
+    #                 sphere_trace[last_index:, 1],
+    #                 sphere_trace[last_index:, 2], color=(0, 0, 1),
+    #                 tube_radius=tube_radius)
+    # l = mlab.plot3d(sphere_trace_single_section[:, 0],
+    #                 sphere_trace_single_section[:, 1],
+    #                 sphere_trace_single_section[:, 2], color=(0, 1, 0),
+    #                 tube_radius=tube_radius)
+    l = mlab.plot3d(sphere_trace[:, 0],
+                    sphere_trace[:, 1],
+                    sphere_trace[:, 2],
+                    length_from_start_to_here, colormap='viridis',
                     tube_radius=tube_radius)
-    l = mlab.plot3d(sphere_trace_single_section[:, 0],
-                    sphere_trace_single_section[:, 1],
-                    sphere_trace_single_section[:, 2], color=(0, 1, 0),
-                    tube_radius=tube_radius)
+
     mlab.show()
+
+    nframes = 300
+    maxscale = 26
+    figsizefactor = 0.85
+    fig, axarr = plt.subplots(2, 1, sharex=True, figsize=(7*figsizefactor, 5*figsizefactor))
+    # sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_single_section, minscale=24.5, maxscale=25.1)
+    # sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=24, maxscale=25)
+    sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=0.01, maxscale=maxscale, nframes=nframes)
+    solution_scale = best_scale
+    ii = np.searchsorted(sweeped_scales, solution_scale)
+    sweeped_scales = np.insert(sweeped_scales, ii, solution_scale)
+    mismatch_angles = np.insert(mismatch_angles, ii, 0)
+    ax = axarr[0]
+    ax.plot(sweeped_scales, np.abs(mismatch_angles)/np.pi*180)
+    ax.axhline(y=0, color='black')
+    ax.scatter([solution_scale], [0], s=20, color='red')
+    ax.set_yticks(np.arange(0, 181, 20))
+    ax.set_ylim(-5, 181)
+    ax.set_ylabel('Mismatch angle\nbetween initial and\nfinal orientations, deg')
+    # ax.set_xlabel('Path\'s scale factor S for fixed sphere radius\n(or inverse sphere radius for fixed scale factor)')
+    # plt.plot(sweeped_scales, mismatch_angles)
+
+    ax = axarr[1]
+    sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_single_section, minscale=0.01, maxscale=maxscale, nframes=nframes)
+    solution_scale = best_scale
+    ii = np.searchsorted(sweeped_scales, solution_scale)
+    sweeped_scales = np.insert(sweeped_scales, ii, solution_scale)
+    mismatch_angles = np.insert(mismatch_angles, ii, np.pi)
+    ax.plot(sweeped_scales, np.abs(mismatch_angles))
+    # ax.axhline(y=0, color='black')
+    ax.scatter([solution_scale], [np.pi], s=20, color='red')
+    ax.set_yticks([0, np.pi/2, np.pi])
+    ax.set_yticklabels(['0', 'π/2', 'π'])
+    ax.set_ylim(-0.001, np.pi*1.01)
+    ax.set_ylabel('Spherical area enclosed\n by the first period\'s trace')
+    ax.set_xlabel('Path\'s scale factor S for fixed sphere radius\n(or inverse sphere radius for fixed scale factor)')
+    plt.tight_layout()
+    fig.savefig(path_for_figs + '/angle-vs-scale.png', dpi=300)
+    plt.show()
+
+
+    do_plot = True
+    npoints = 30
+
+    best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=(24.7, 24.9))
+    print(f'Best scale: {best_scale}')
+    # Minimized mismatch angle = -2.6439127092433114e-05
+    # Best scale: 0.6387022944333781
+
+    input_path = best_scale * input_path_0
+    plotting_upsample_factor = 1
+    sphere_trace = trace_on_sphere(upsample_path(input_path, by_factor=10),
+                                   kx=1, ky=1)
+    sphere_trace_single_section = trace_on_sphere(upsample_path(input_path_single_section * best_scale, by_factor=10),
+                                                  kx=1, ky=1)
+    if do_plot:
+        core_radius = 1
+        mlab.figure(size=(1024, 768), \
+                    bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+        tube_radius = 0.01
+        plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+        l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+                        tube_radius=tube_radius)
+        l = mlab.plot3d(sphere_trace_single_section[:, 0],
+                        sphere_trace_single_section[:, 1],
+                        sphere_trace_single_section[:, 2], color=(0, 1, 0),
+                        tube_radius=tube_radius)
+        mlab.show()
+
+if __name__ == '__main__':
+    test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brownian_path_1/figures',
+                              best_scale = 24.810359103416662)
 
 # sweeped_scales, mismatch_angles = mismatches_for_all_scales()
 # plt.plot(sweeped_scales, np.abs(mismatch_angles))

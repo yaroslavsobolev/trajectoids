@@ -543,9 +543,9 @@ def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, d
     input_path_with_bridge = path_from_trace(trace_width_bridge)
     return input_path_with_bridge
 
-def mismatch_angle_for_path(input_path):
+def mismatch_angle_for_path(input_path, recursive=False, use_cache=False):
     rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(
-        rotation_to_origin(input_path.shape[0] - 1, input_path))
+        rotation_to_origin(input_path.shape[0] - 1, input_path, recursive=recursive, use_cache=use_cache))
     angle = rotation_of_entire_traj[0]
     return angle
 
