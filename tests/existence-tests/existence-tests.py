@@ -91,6 +91,15 @@ def mismatches_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 1
         mismatch_angles.append(mismatch_angle_for_path(input_path_single_section, recursive=False, use_cache=False))
     return sweeped_scales, np.array(mismatch_angles)
 
+def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 100):
+    gauss_bonnet_areas = []
+    sweeped_scales = np.linspace(minscale, maxscale, nframes)
+    for frame_id, scale in enumerate(sweeped_scales):
+        print(f'Computing GB_area for scale {scale}')
+        input_path_scaled = input_path * scale
+        gauss_bonnet_areas.append(get_gb_area(input_path_scaled))
+    return sweeped_scales, np.array(gauss_bonnet_areas)
+
 def make_brownian_path(Npath = 150, seed=0, travel_length=0.1, end_with_zero=True):
     np.random.seed(seed)
     angles = np.random.random_sample(Npath)*2*np.pi
@@ -118,7 +127,7 @@ def make_archimedes_spiral(turns, rate_parameter, npoints, noise_amplitude, end_
     plt.plot(xs, ys)
     return np.stack((xs, ys)).T
 
-def make_narrow(npoints, shift=0.05, noise_amplitude=0, end_with_zero=True, seed=0):
+def make_narrow(npoints, shift=0.05, noise_amplitude=0, end_with_zero=True, seed=0, upsample_by=3):
     np.random.seed(seed)
     noise = noise_amplitude * (2 * np.random.random_sample(npoints) - 1)
     xs = np.linspace(0, 2, int(round(npoints/2)))
@@ -129,6 +138,12 @@ def make_narrow(npoints, shift=0.05, noise_amplitude=0, end_with_zero=True, seed
     ys2[1:-1] += shift
     xs = np.concatenate((xs[:-1], xs2))
     ys = np.concatenate((ys[:-1], ys2))
+    xs = xs - xs[0]
+    ys = ys - ys[0]
+
+    upsampled_path = upsample_path(np.stack((xs, ys)).T, by_factor=upsample_by)
+    xs = upsampled_path[:, 0]
+    ys = upsampled_path[:, 1]
 
     spline_xs = np.array([0, 0.5, 1.2, 1.5, 2])
     spline_ys = np.array([0, 0.5, 0.3, -0.3, 0])
@@ -136,6 +151,25 @@ def make_narrow(npoints, shift=0.05, noise_amplitude=0, end_with_zero=True, seed
     ys = ys + s(xs)
     xs = xs - xs[0]
     ys = ys - ys[0]
+    # if end_with_zero:
+    #     ys = ys - xs*(ys[-1] - ys[0])/(xs[-1] - xs[0])
+    plt.plot(xs, ys)
+    return np.stack((xs, ys)).T
+
+def make_sine(npoints, shift=0.05, end_with_zero=True, seed=0):
+    np.random.seed(seed)
+    xs = np.linspace(0, 2*np.pi, npoints)
+    ys = np.sin(xs)
+    xs2 = np.linspace(2, 0, npoints)
+    ys2 = np.sin(xs2)*(1-shift)
+    xs = np.concatenate((xs[:-1], xs2))
+    ys = np.concatenate((ys[:-1], ys2))
+    xs = xs - xs[0]
+    ys = ys - ys[0]
+    # spline_xs = np.array([0, 0.5, 1.2, 1.5, 2])
+    # spline_ys = np.array([0, 0.5, 0.3, -0.3, 0])
+    # s = interpolate.InterpolatedUnivariateSpline(spline_xs, spline_ys)
+    # ys = ys + s(xs)
     # if end_with_zero:
     #     ys = ys - xs*(ys[-1] - ys[0])/(xs[-1] - xs[0])
     plt.plot(xs, ys)
@@ -170,8 +204,12 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
                                                            npoints=150, noise_amplitude=0.2)
         input_path_single_section = upsample_path(input_path_single_section, by_factor=5)
     elif path_type == 'narrow':
+        # # this one worked with best_scale = 79.35082181975892,
+        # input_path_single_section = make_narrow(npoints=150)
         input_path_single_section = make_narrow(npoints=150)
         # input_path_single_section = upsample_path(input_path_single_section, by_factor=20)
+    elif path_type == 'sine':
+        input_path_single_section = make_sine(npoints=150)
 
     input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=False)
     # plotting with color along the line
@@ -245,9 +283,9 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     # sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=24, maxscale=25)
     sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale, nframes=nframes)
     solution_scale = best_scale
-    # ii = np.searchsorted(sweeped_scales, solution_scale)
-    # sweeped_scales = np.insert(sweeped_scales, ii, solution_scale)
-    # mismatch_angles = np.insert(mismatch_angles, ii, 0)
+    ii = np.searchsorted(sweeped_scales, solution_scale)
+    sweeped_scales = np.insert(sweeped_scales, ii, solution_scale)
+    mismatch_angles = np.insert(mismatch_angles, ii, 0)
     ax = axarr[0]
     ax.plot(sweeped_scales, np.abs(mismatch_angles)/np.pi*180)
     # ax.plot(sweeped_scales, mismatch_angles / np.pi * 180)
@@ -255,26 +293,51 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     ax.scatter([solution_scale], [0], s=20, color='red')
     ax.set_yticks(np.arange(0, 181, 20))
     ax.set_ylim(-5, 181)
-    ax.set_ylabel('Mismatch angle\nbetween initial and\nfinal orientations, deg')
+    ax.set_ylabel('Mismatch angle (deg.)\nbetween initial and\nfinal orientations after\npassing two periods')
     # ax.set_xlabel('Path\'s scale factor S for fixed sphere radius\n(or inverse sphere radius for fixed scale factor)')
     # plt.plot(sweeped_scales, mismatch_angles)
+    plt.show()
 
     ax = axarr[1]
-    sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale, nframes=nframes)
+    sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale, nframes=nframes)
+    # compensation for integer number of 2*pi due to rotation index of the curve
+    gb_area_zero = round(gb_areas[0]/np.pi) * np.pi
+    gb_areas -= gb_area_zero
+
+    # correct for changes of rotation index I upon scaling. Upon +1 or -1 change of I, the integral of geodesic curvature
+    # (total change of direction) increments or decrements by 2*pi
+    additional_rotation_indices = np.zeros_like(gb_areas)
+    additional_rotation_index_here = 0
+    threshold_for_ind = 2*np.pi*0.75
+    for i in range(1, gb_areas.shape[0]):
+        diff_here = gb_areas[i] - gb_areas[i-1]
+        if diff_here < -threshold_for_ind:
+            additional_rotation_index_here -= 1
+        if diff_here > threshold_for_ind:
+            additional_rotation_index_here += 1
+        additional_rotation_indices[i] = additional_rotation_index_here
+
+    gb_areas -= 2 * np.pi * additional_rotation_indices
+
     solution_scale = best_scale
     # ii = np.searchsorted(sweeped_scales, solution_scale)
     # sweeped_scales = np.insert(sweeped_scales, ii, solution_scale)
-    # mismatch_angles = np.insert(mismatch_angles, ii, np.pi)
-    ax.plot(sweeped_scales, np.abs(mismatch_angles))
-    # ax.axhline(y=0, color='black')
-    ax.scatter([solution_scale], [np.pi], s=20, color='red')
-    ax.set_yticks([0, np.pi/2, np.pi])
-    ax.set_yticklabels(['0', 'π/2', 'π'])
-    ax.set_ylim(-0.001, np.pi*1.01)
-    ax.set_ylabel('Spherical area enclosed\n by the first period\'s trace')
-    ax.set_xlabel('Path\'s scale factor S for fixed sphere radius\n(or inverse sphere radius for fixed scale factor)')
+    # mismatch_angles = np.insert(mismatch_angles, ii, np.pi * np.sign(interp1d(sweeped_scales, gb_areas)(solution_scale)))
+    ax.plot(sweeped_scales, gb_areas)
+    ax.axhline(y=np.pi, color='black', alpha=0.5)
+    ax.axhline(y=0, color='black', alpha=0.3)
+    ax.axhline(y=-1*np.pi, color='black', alpha=0.5)
+    ax.scatter([solution_scale], [np.pi * np.sign(interp1d(sweeped_scales, gb_areas)(solution_scale))], s=20, color='red')
+    ax.set_yticks([-2*np.pi, -np.pi, 0, np.pi, 2*np.pi])
+    ax.set_yticklabels(['-2π', '-π', '0', 'π', '2π'])
+    ax.set_ylim(-np.pi*2*1.01, np.pi*2*1.01)
+    ax.set_ylabel('Spherical area $S(\sigma)$\n enclosed by the \nfirst period\'s trace')
+    ax.set_xlabel('Path\'s scale factor $\sigma$ for fixed ball radius $r=1$\n(or $1/r$ for fixed $\sigma=1$)')
     plt.tight_layout()
     fig.savefig(path_for_figs + '/angle-vs-scale.png', dpi=300)
+    plt.show()
+
+    plt.plot(sweeped_scales, additional_rotation_indices, 'o-')
     plt.show()
 
 
@@ -285,7 +348,7 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     elif path_type == 'spiral':
         best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=(0.25, 0.27))
     elif path_type == 'narrow':
-        best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=(79.3, 79.4))
+        best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=(79.6, 80)) #scale_range=(79.3, 79.4)
     print(f'Best scale: {best_scale}')
     # Minimized mismatch angle = -2.6439127092433114e-05
     # Best scale: 0.6387022944333781
@@ -320,24 +383,23 @@ if __name__ == '__main__':
     #                           circlealpha=1
     #                           )
 
-    # test_trajectoid_existence(path_type='spiral', path_for_figs='examples/spiral_path_1/figures',
-    #                           best_scale = 0.2588162519798698,
-    #                           nframes=300,
-    #                           maxscale=0.4,
-    #                           figsizefactor=0.85,
-    #                           circle_center=[0, 0],
-    #                           circlealpha=0.5
-    #                           )
-
-
-    test_trajectoid_existence(path_type='narrow', path_for_figs='examples/narrow_1/figures',
-                              best_scale = 79.35082181975892,
-                              nframes=900,
-                              maxscale=85,
+    test_trajectoid_existence(path_type='spiral', path_for_figs='examples/spiral_path_1/figures',
+                              best_scale = 0.2588162519798698,
+                              nframes=30,
+                              maxscale=0.4,
                               figsizefactor=0.85,
-                              circle_center=[0.75, 0],
-                              circlealpha=1
+                              circle_center=[0, 0],
+                              circlealpha=0.5
                               )
+
+    # test_trajectoid_existence(path_type='narrow', path_for_figs='examples/narrow_1/figures',
+    #                           best_scale = 79.83304727542121, #79.35082181975892,
+    #                           nframes=900, #900
+    #                           maxscale=85,
+    #                           figsizefactor=0.85,
+    #                           circle_center=[0.75, 0],
+    #                           circlealpha=1
+    #                           )
 # sweeped_scales, mismatch_angles = mismatches_for_all_scales()
 # plt.plot(sweeped_scales, np.abs(mismatch_angles))
 # plt.show()

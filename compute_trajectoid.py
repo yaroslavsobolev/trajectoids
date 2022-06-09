@@ -1078,3 +1078,33 @@ def double_the_path(input_path_0, do_plot=False, do_sort=True):
         plt.show()
 
     return sort_path(input_path_0)
+
+
+def get_gb_area(input_path):
+    sphere_trace = trace_on_sphere(input_path, kx=1, ky=1, do_plot=False)
+
+    # get total change of angle
+    extended_trace = np.vstack((sphere_trace, sphere_trace[0, :], sphere_trace[1, :]))
+
+    # angle change between consecutive arcs
+    angles = []
+    sum_angle = 0
+    for i in range(extended_trace.shape[0] - 2):
+        first_point = extended_trace[i, :]
+        central_point = extended_trace[i + 1, :]
+        last_point = extended_trace[i + 2, :]
+        first_arc_axis = np.cross(first_point, central_point)
+        second_arc_axis = np.cross(central_point, last_point)
+        first_arc_axis = first_arc_axis / np.linalg.norm(first_arc_axis)
+        second_arc_axis = second_arc_axis / np.linalg.norm(second_arc_axis)
+        signed_sine = np.dot(np.cross(first_arc_axis, second_arc_axis),
+                             central_point)
+        signed_cosine = np.dot(first_arc_axis, second_arc_axis)
+        angle = np.arctan2(signed_sine, signed_cosine)
+        angles.append(angle)
+        sum_angle += angle
+        gauss_bonnet_area = 2 * np.pi - sum_angle
+    # print(angles)
+    print(f'Sum angle = {sum_angle / np.pi} pi')
+    print(f'Area = {gauss_bonnet_area / np.pi} pi')
+    return gauss_bonnet_area
