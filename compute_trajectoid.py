@@ -1081,6 +1081,8 @@ def double_the_path(input_path_0, do_plot=False, do_sort=True):
 
 
 def get_gb_area(input_path):
+    '''This function does not take into account the possibly changing rotation index of the spherical trace.
+    It has to be accounted for in the downstream code.'''
     sphere_trace = trace_on_sphere(input_path, kx=1, ky=1, do_plot=False)
 
     # get total change of angle
