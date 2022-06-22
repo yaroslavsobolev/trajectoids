@@ -3,6 +3,7 @@ from numpy.linalg import norm as lnorm
 import trimesh
 import time
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 from skimage import io
 from mayavi import mlab
 from math import atan2
@@ -1110,3 +1111,99 @@ def get_gb_area(input_path):
     print(f'Sum angle = {sum_angle / np.pi} pi')
     print(f'Area = {gauss_bonnet_area / np.pi} pi')
     return gauss_bonnet_area
+
+def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 100):
+    '''This function takes into account the possibly changing rotation index of the spherical trace.'''
+    gauss_bonnet_areas = []
+    sweeped_scales = np.linspace(minscale, maxscale, nframes)
+    for frame_id, scale in enumerate(sweeped_scales):
+        print(f'Computing GB_area for scale {scale}')
+        input_path_scaled = input_path * scale
+        gauss_bonnet_areas.append(get_gb_area(input_path_scaled))
+
+    gb_areas = np.array(gauss_bonnet_areas)
+    # compensation for integer number of 2*pi due to rotation index of the curve
+    gb_area_zero = round(gb_areas[0]/np.pi) * np.pi
+    gb_areas -= gb_area_zero
+
+    # correct for changes of rotation index I upon scaling. Upon +1 or -1 change of I, the integral of geodesic curvature
+    # (total change of direction) increments or decrements by 2*pi
+    additional_rotation_indices = np.zeros_like(gb_areas)
+    additional_rotation_index_here = 0
+    threshold_for_ind = 2*np.pi*0.75
+    for i in range(1, gb_areas.shape[0]):
+        diff_here = gb_areas[i] - gb_areas[i-1]
+        if np.abs(diff_here) > threshold_for_ind:
+            additional_rotation_index_here += np.round(diff_here/(2*np.pi))
+        additional_rotation_indices[i] = additional_rotation_index_here
+    gb_areas -= 2 * np.pi * additional_rotation_indices
+
+    # # Plot additional rotation indices for debugging
+    # plt.plot(sweeped_scales, additional_rotation_indices, 'o-')
+    # plt.show()
+
+    return sweeped_scales, gb_areas
+
+def length_along_the_path(input_path_0):
+    x = input_path_0[:, 0]
+    y = input_path_0[:, 1]
+    length_along_the_path = np.cumsum( np.sqrt((np.diff(x)**2 + np.diff(y)**2)) )
+    length_along_the_path = np.insert(length_along_the_path, 0, 0)
+    length_along_the_path = np.remainder(length_along_the_path, np.max(length_along_the_path)/2)
+    length_along_the_path /= np.max(length_along_the_path)
+    return length_along_the_path
+
+def upsample_path(input_path, by_factor=10, kind='linear'):
+    old_indices = np.arange(input_path.shape[0])
+    max_index = input_path.shape[0]-1
+    new_indices = np.arange(0, max_index, 1/by_factor)
+    new_indices = np.append(new_indices, max_index)
+    new_xs = interpolate.interp1d(old_indices, input_path[:, 0], kind=kind)(new_indices)
+    new_ys = interpolate.interp1d(old_indices, input_path[:, 1], kind=kind)(new_indices)
+    return np.stack((new_xs, new_ys)).T
+
+def plot_flat_path_with_color(input_path, half_of_input_path, axs):
+    '''plotting with color along the line'''
+    length_from_start_to_here = length_along_the_path(input_path)
+    x = input_path[:, 0]
+    y = input_path[:, 1]
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+    # Coloring the curve
+    norm = plt.Normalize(length_from_start_to_here.min(), length_from_start_to_here.max())
+    lc = LineCollection(segments, cmap='viridis', norm=norm)
+    lc.set_array(length_from_start_to_here)
+    lc.set_linewidth(1)
+    line = axs.add_collection(lc)
+
+    #black dots at middle and ends of the path
+    for point in [half_of_input_path[0], half_of_input_path[-1], input_path[-1]]:
+        axs.scatter(point[0], point[1], color='black', s=10)
+
+    plt.axis('equal')
+
+def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half, scale,
+                                                    verbose=False, plotting_upsample_factor = 1):
+    length_from_start_to_here = length_along_the_path(input_path)
+    if verbose:
+        t0 = time.time()
+    sphere_trace = trace_on_sphere(upsample_path(scale * input_path, by_factor=plotting_upsample_factor),
+                                   kx=1, ky=1)
+    # sphere_trace_single_section = trace_on_sphere(upsample_path(input_path_half * scale,
+    #                                                             by_factor=plotting_upsample_factor),
+    #                                               kx=1, ky=1)
+    if verbose:
+        print(f'Seconds passed: {time.time() - t0:.3f}')
+        print('Mlab plot begins...')
+    core_radius = 1
+    last_index = sphere_trace.shape[0] // 2
+    mlab.figure(size=(1024, 768), \
+                bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+    tube_radius = 0.01
+    plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+    mlab.plot3d(sphere_trace[:, 0],
+                sphere_trace[:, 1],
+                sphere_trace[:, 2],
+                length_from_start_to_here, colormap='viridis',
+                tube_radius=tube_radius)
