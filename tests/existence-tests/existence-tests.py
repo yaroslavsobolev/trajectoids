@@ -3,6 +3,7 @@ from compute_trajectoid import *
 # import numpy as np
 # import mayavi
 from scipy.interpolate import interp1d
+# import plotly.express as px
 
 def double_the_path_nosort(input_path_0, do_plot=False):
     # input_path_0 = input_path
@@ -200,6 +201,31 @@ def make_zigzag2(a):
     input_path[:,1] = input_path[:,1] - input_path[0,1]
     return input_path, np.array(tips)
 
+def make_zigzag_tapered(zigzag_edge_length_without_taper=np.pi / 2,
+                        zigzag_corner_angle=np.pi / 4,
+                        taper_ratio=0.3, Ns=3):
+    distance_from_taper_start_to_default_corner = taper_ratio * zigzag_edge_length_without_taper / 2
+    taper_length = 2 * distance_from_taper_start_to_default_corner * np.sin(zigzag_corner_angle / 2)
+    input_path = np.array([[0, 0]])
+    angles = [0,
+              -1*(np.pi/2-zigzag_corner_angle/2),
+              0,
+              np.pi/2-zigzag_corner_angle/2,
+              0]#, -np.pi/4, np.pi/4, -np.pi/4, np.pi/4]
+    lengths = [taper_length/2,
+               zigzag_edge_length_without_taper - 2*distance_from_taper_start_to_default_corner,
+               taper_length,
+               zigzag_edge_length_without_taper - 2*distance_from_taper_start_to_default_corner,
+               taper_length/2]
+    tips = [[0, 0]]
+    for i, angle in enumerate(angles):
+        startpoint = input_path[-1,:]
+        new_section = add_interval(startpoint, angle, lengths[i], Ns=Ns)
+        input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+        tips.append(new_section[-1])
+    input_path[:,1] = input_path[:,1] - input_path[0,1]
+    return input_path, np.array(tips)
+
 # def make_zigzag2(a):
 #     beta = np.pi/8
 #     alpha = np.pi/16
@@ -229,12 +255,12 @@ def plot_mismatches_vs_scale(ax, input_path, sweeped_scales, mismatch_angles, ma
     ax.axhline(y=0, color='black')
     if mark_one_scale:
         value_at_scale_to_mark = interp1d(sweeped_scales, mismatch_angles)(scale_to_mark)
-        ax.scatter([scale_to_mark], [value_at_scale_to_mark], s=20, color='red')
+        ax.scatter([scale_to_mark], [180/np.pi*np.abs(value_at_scale_to_mark)], s=20, color='red')
     ax.set_yticks(np.arange(0, 181, 20))
     ax.set_ylim(-5, 181)
     ax.set_ylabel('Mismatch angle (deg.)\nbetween initial and\nfinal orientations after\npassing two periods')
 
-def plot_gb_ares(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
+def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
 
     ## This code injects the sampled point at the solution_scale. Otherwise the root can be not at one of sampled points
     # ii = np.searchsorted(sweeped_scales, solution_scale)
@@ -264,7 +290,8 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
                               circle_center=[-1.7, -0.6],
                               circlealpha=1, plot_solution=True,
                               range_for_searching_the_roots=(0, 4),
-                              do_plot = True):
+                              do_plot = True,
+                              path_parameter=0.1):
     """
     Tests existence of two-period trajectoid for a given path. It will also plot the mismatch angle and the
     Gauss-Bonnet area enclosed by the first period and great arc connecting its ends. Mismatch angles and areas will be
@@ -286,8 +313,9 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     :param circle_center: Tuple of two floats. Location of circle illustrating the size of the rolling sphere relative to the path.
     :param circlealpha: Float. Alpha (opacity) of circle illustrating the size of the rolling sphere relative to the path.
     :param plot_solution: Bool. Whether to plot the red dot (at 'preliminary_best_scale') on the plots of area and mismatch angle.
-    :param range_for_searching_the_roots: Tuple of two float values. The best scale minimizing the mismatch angle will be automatically searched
-                                          in this range by a root-finding algorithm.
+    :param range_for_searching_the_roots: String "auto" or a tuple of two float values. The best scale minimizing the mismatch angle will be automatically searched
+                                          in this range by a root-finding algorithm. If set to "auto", the first crossing of pi by enclosed are
+                                          will be used as right end of range, and the previous point as the lft end of range.
     :param do_plot: Boolean. Whether to plot some of the plots.
     """
     # input_path_single_section = make_random_path(seed=1, amplitude=3, make_ends_horizontal='both', end_with_zero=True)
@@ -313,6 +341,8 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
         input_path_single_section, tips = make_zigzag(np.pi / 2)
     elif path_type == 'zigzag_2':
         input_path_single_section, tips = make_zigzag2(np.pi / 2)
+    elif path_type == 'zigzag_tapered':
+        input_path_single_section, tips = make_zigzag_tapered(taper_ratio=path_parameter)
 
     input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=False)
 
@@ -336,18 +366,25 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale, nframes=nframes)
     sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale, nframes=nframes)
 
+    if range_for_searching_the_roots == 'auto':
+        index_where_area_crosses_pi = np.argmax(np.abs(gb_areas) > np.pi)
+        range_for_searching_the_roots = [sweeped_scales[index_where_area_crosses_pi-1],
+                                         sweeped_scales[index_where_area_crosses_pi]]
+        print(f'Auto range for roots: {range_for_searching_the_roots}')
+    best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=range_for_searching_the_roots)
+    print(f'Best scale: {best_scale}')
+
+    preliminary_best_scale = best_scale
+
     fig, axarr = plt.subplots(2, 1, sharex=True, figsize=(7*figsizefactor, 5*figsizefactor))
     plot_mismatches_vs_scale(axarr[0], input_path_0, sweeped_scales, mismatch_angles,
                              mark_one_scale=plot_solution,
                              scale_to_mark=preliminary_best_scale)
-    plot_gb_ares(axarr[1], sweeped_scales, gb_areas, mark_one_scale=plot_solution,
-                 scale_to_mark=preliminary_best_scale)
+    plot_gb_areas(axarr[1], sweeped_scales, gb_areas, mark_one_scale=plot_solution,
+                  scale_to_mark=preliminary_best_scale)
     plt.tight_layout()
     fig.savefig(path_for_figs + '/angle-vs-scale.png', dpi=300)
     plt.show()
-
-    best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=range_for_searching_the_roots)
-    print(f'Best scale: {best_scale}')
 
     # # Plot the spherical trace for the true solution (best_scale found by the root finding)
     # input_path = best_scale * input_path_0
@@ -404,7 +441,7 @@ if __name__ == '__main__':
     #
     # test_trajectoid_existence(path_type='sine', path_for_figs='examples/sine_existence_1/figures',
     #                           preliminary_best_scale = 14.906282559862566, #79.35082181975892,
-    #                           nframes=1200, #900
+    #                           nframes=2000, #900
     #                           maxscale=16,
     #                           figsizefactor=0.85,
     #                           circle_center=[0.75, 0],
@@ -422,15 +459,15 @@ if __name__ == '__main__':
     #                           range_for_searching_the_roots=(27.0, 27.5)
     #                           )
 
-    test_trajectoid_existence(path_type='zigzag', path_for_figs='examples/zigzag_1/figures',
-                              preliminary_best_scale = 4,
-                              nframes=150,
-                              maxscale=15,
-                              figsizefactor=0.85,
-                              circle_center=[0.6, -0.3],
-                              circlealpha=1,
-                              range_for_searching_the_roots=(3.9, 4.1)
-                              )
+    # test_trajectoid_existence(path_type='zigzag', path_for_figs='examples/zigzag_1/figures',
+    #                           preliminary_best_scale = 4,
+    #                           nframes=150,
+    #                           maxscale=15,
+    #                           figsizefactor=0.85,
+    #                           circle_center=[0.6, -0.3],
+    #                           circlealpha=1,
+    #                           range_for_searching_the_roots=(3.9, 4.1)
+    #                           )
 
     # test_trajectoid_existence(path_type='zigzag_2', path_for_figs='examples/zigzag_2/figures',
     #                           preliminary_best_scale = 43,
@@ -442,3 +479,27 @@ if __name__ == '__main__':
     #                           plot_solution=False,
     #                           range_for_searching_the_roots=(63, 64)
     #                           )
+
+    # test_trajectoid_existence(path_type='zigzag_tapered', path_for_figs='examples/zigzag_tapered/figures',
+    #                           preliminary_best_scale = 10.805702204321273,# 4.240589475501186,
+    #                           nframes=500,
+    #                           maxscale=11.23,
+    #                           figsizefactor=0.85,
+    #                           circle_center=[-1.7, -0.6],
+    #                           circlealpha=1,
+    #                           plot_solution=True,
+    #                           range_for_searching_the_roots=(10.6, 10.9),
+    #                           path_parameter=0.3
+    #                           )
+
+    test_trajectoid_existence(path_type='zigzag_tapered', path_for_figs='examples/zigzag_tapered/figures',
+                              preliminary_best_scale = 10.805702204321273,# 4.240589475501186,
+                              nframes=2000,
+                              maxscale=70,
+                              figsizefactor=0.85,
+                              circle_center=[-1.7, -0.6],
+                              circlealpha=1,
+                              plot_solution=True,
+                              range_for_searching_the_roots='auto',#(10.6, 10.9),
+                              path_parameter=0.1
+                              )

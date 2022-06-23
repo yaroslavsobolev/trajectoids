@@ -5,7 +5,6 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from skimage import io
-from mayavi import mlab
 from math import atan2
 from scipy.optimize import fsolve, brentq, minimize
 from scipy import interpolate
@@ -14,6 +13,18 @@ from numba import jit
 from scipy.signal import savgol_filter
 from functools import lru_cache
 # from great_circle_arc import intersects\
+
+USED_3D_PLOTTING_PACKAGE = 'mayavi'
+
+# USED_3D_PLOTTING_PACKAGE = 'plotly'
+
+# if USED_3D_PLOTTING_PACKAGE == 'mayavi':
+#     from mayavi import mlab
+# elif USED_3D_PLOTTING_PACKAGE == 'plotly':
+#     import plotly.express as px
+
+from mayavi import mlab
+import plotly.graph_objects as go
 
 last_path = np.array([0, 0])
 cached_rotations_to_origin = dict()
@@ -1188,22 +1199,58 @@ def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half,
     length_from_start_to_here = length_along_the_path(input_path)
     if verbose:
         t0 = time.time()
-    sphere_trace = trace_on_sphere(upsample_path(scale * input_path, by_factor=plotting_upsample_factor),
-                                   kx=1, ky=1)
-    # sphere_trace_single_section = trace_on_sphere(upsample_path(input_path_half * scale,
-    #                                                             by_factor=plotting_upsample_factor),
-    #                                               kx=1, ky=1)
+    sphere_trace = trace_on_sphere(upsample_path(scale * input_path,
+                                                 by_factor=plotting_upsample_factor), kx=1, ky=1)
     if verbose:
         print(f'Seconds passed: {time.time() - t0:.3f}')
         print('Mlab plot begins...')
     core_radius = 1
-    last_index = sphere_trace.shape[0] // 2
-    mlab.figure(size=(1024, 768), \
-                bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
     tube_radius = 0.01
-    plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-    mlab.plot3d(sphere_trace[:, 0],
-                sphere_trace[:, 1],
-                sphere_trace[:, 2],
-                length_from_start_to_here, colormap='viridis',
-                tube_radius=tube_radius)
+    last_index = sphere_trace.shape[0] // 2
+    if USED_3D_PLOTTING_PACKAGE == 'mayavi':
+        mlab.figure(size=(1024, 768), \
+                    bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+        plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+        mlab.plot3d(sphere_trace[:, 0],
+                    sphere_trace[:, 1],
+                    sphere_trace[:, 2],
+                    length_from_start_to_here, colormap='viridis',
+                    tube_radius=tube_radius)
+    elif USED_3D_PLOTTING_PACKAGE == 'plotly':
+        fig = go.Figure(data=go.Scatter3d(
+            x=sphere_trace[:, 0], y=sphere_trace[:, 1], z=sphere_trace[:, 2],
+            marker=dict(
+                size=0,
+                color=length_from_start_to_here,
+                colorscale='Viridis',
+            ),
+            line=dict(
+                color=length_from_start_to_here,
+                colorscale='Viridis',
+                width=5
+            )
+        ))
+
+        fig.update_layout(
+            width=800,
+            height=700,
+            autosize=False,
+            scene=dict(
+                camera=dict(
+                    up=dict(
+                        x=0,
+                        y=0,
+                        z=1
+                    ),
+                    eye=dict(
+                        x=0,
+                        y=1.0707,
+                        z=1,
+                    )
+                ),
+                aspectratio=dict(x=1, y=1, z=1),
+                aspectmode='manual'
+            ),
+        )
+
+        fig.show()
