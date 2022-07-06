@@ -295,12 +295,12 @@ def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes'
         print('Saving box for cutting: {0}'.format(i))
         box.export('{0}/test_{1}.obj'.format(folder_for_meshes, i))
 
-def plot_sphere(r0, line_radius):
+def plot_sphere(r0, line_radius, sphere_opacity=.8):
     sphere = mlab.points3d(0, 0, 0, scale_mode='none',
                            scale_factor=2*r0,
                            color=(1, 1, 1),
                            resolution=100,
-                           opacity=.8,
+                           opacity=sphere_opacity,
                            name='Earth')
     sphere.actor.property.frontface_culling = True
 
@@ -1195,7 +1195,8 @@ def plot_flat_path_with_color(input_path, half_of_input_path, axs):
     plt.axis('equal')
 
 def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half, scale,
-                                                    verbose=False, plotting_upsample_factor = 1):
+                                                    verbose=False, plotting_upsample_factor = 1,
+                                                    sphere_opacity=.8):
     length_from_start_to_here = length_along_the_path(input_path)
     if verbose:
         t0 = time.time()
@@ -1208,14 +1209,15 @@ def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half,
     tube_radius = 0.01
     last_index = sphere_trace.shape[0] // 2
     if USED_3D_PLOTTING_PACKAGE == 'mayavi':
-        mlab.figure(size=(1024, 768), \
+        mfig = mlab.figure(size=(1024, 1024), \
                     bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
-        plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+        plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4, sphere_opacity=sphere_opacity)
         mlab.plot3d(sphere_trace[:, 0],
                     sphere_trace[:, 1],
                     sphere_trace[:, 2],
                     length_from_start_to_here, colormap='viridis',
                     tube_radius=tube_radius)
+        return mfig
     elif USED_3D_PLOTTING_PACKAGE == 'plotly':
         fig = go.Figure(data=go.Scatter3d(
             x=sphere_trace[:, 0], y=sphere_trace[:, 1], z=sphere_trace[:, 2],
