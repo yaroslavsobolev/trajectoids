@@ -84,11 +84,11 @@ def align_view(scene):
     scene.scene.camera.clipping_range = [3.573025799931812, 10.592960367304393]
     scene.scene.camera.compute_view_plane_normal()
 
-def mismatches_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 100):
+def mismatches_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 100, verbose=False):
     mismatch_angles = []
     sweeped_scales = np.linspace(minscale, maxscale, nframes)
-    for frame_id, scale in enumerate(sweeped_scales):
-        print(f'Computing mismatch for scale {scale}')
+    for frame_id, scale in enumerate(tqdm(sweeped_scales, desc='Computing mismatch for all scales')):
+        logging.debug(f'Computing mismatch for scale {scale}')
         input_path_single_section = input_path * scale
         mismatch_angles.append(mismatch_angle_for_path(input_path_single_section, recursive=False, use_cache=False))
     return sweeped_scales, np.array(mismatch_angles)
@@ -255,6 +255,39 @@ def make_zigzag_kinked(zigzag_edge_length_without_kink=np.pi / 2,
     input_path[:, 1] = input_path[:, 1] - input_path[0, 1]
     return input_path, np.array(tips)
 
+def make_zigzag_kinked_asymm(zigzag_edge_length_without_kink=np.pi / 2,
+                        zigzag_corner_angle=np.pi / 4,
+                        kink_angle_1=0.2, kink_angle_2=0.8, Ns=3, asymmetry=0.6):
+    kink_angle_1_b = kink_angle_1 * (1 + asymmetry)
+    kink_angle_2_b = kink_angle_2 * (1 + asymmetry)
+
+    input_path = np.array([[0, 0]])
+    gamma = np.pi - kink_angle_1 - kink_angle_2
+    length_of_segment_1 = zigzag_edge_length_without_kink / np.sin(gamma) * np.sin(kink_angle_2)
+    length_of_segment_2 = zigzag_edge_length_without_kink / np.sin(gamma) * np.sin(kink_angle_1)
+
+    gamma_b = np.pi - kink_angle_1_b - kink_angle_2_b
+    length_of_segment_1_b = zigzag_edge_length_without_kink / np.sin(gamma_b) * np.sin(kink_angle_2_b)
+    length_of_segment_2_b = zigzag_edge_length_without_kink / np.sin(gamma_b) * np.sin(kink_angle_1_b)
+
+    angles = [-1 * (np.pi / 2 - zigzag_corner_angle / 2) - kink_angle_1,
+              -1 * (np.pi / 2 - zigzag_corner_angle / 2) + kink_angle_2,
+              np.pi / 2 - zigzag_corner_angle / 2 + kink_angle_2_b,
+              np.pi / 2 - zigzag_corner_angle / 2 - kink_angle_1_b]
+    lengths = [length_of_segment_1, length_of_segment_2, length_of_segment_2_b, length_of_segment_1_b]
+    tips = [[0, 0]]
+    for i, angle in enumerate(angles):
+        startpoint = input_path[-1, :]
+        new_section = add_interval(startpoint, angle, lengths[i], Ns=Ns)
+        input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+        tips.append(new_section[-1])
+    input_path[:, 1] = input_path[:, 1] - input_path[0, 1]
+    return input_path, np.array(tips)
+
+def make_zigzag_with_smoothed_corner(zigzag_edge_length_without_kink=np.pi / 2,
+                        zigzag_corner_angle=np.pi / 4,
+                        radius_of_curvature=np.pi / 10):
+
 # def make_zigzag2(a):
 #     beta = np.pi/8
 #     alpha = np.pi/16
@@ -339,13 +372,15 @@ def select_path_by_path_type(path_parameter, path_type):
         input_path_single_section, tips = make_zigzag_tapered(taper_ratio=path_parameter)
     elif path_type == 'zigzag_kinked':
         input_path_single_section, tips = make_zigzag_kinked(kink_angle_1=path_parameter, kink_angle_2=path_parameter*4)
+    elif path_type == 'zigzag_kinked_asymmetric':
+        input_path_single_section, tips = make_zigzag_kinked_asymm(asymmetry=path_parameter)
     return input_path_single_section
 
 
 def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brownian_path_1/figures',
                               forced_best_scale = False,
                               nframes=300,
-                              minscale=0.01,
+                              minscale=0.02,
                               maxscale = 26,
                               figsizefactor = 0.85,
                               circle_center=[0, 0],
@@ -354,7 +389,8 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
                               do_plot = True,
                               path_parameter=0.1,
                               path_for_united_fig=False,
-                              fig_title='Path parameter: '
+                              fig_title='Path parameter: ',
+                              trace_upsample_factor = 100
                               ):
     """
     Tests existence of two-period trajectoid for a given path. It will also plot the mismatch angle and the
@@ -391,7 +427,10 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     if forced_best_scale:
         # Plot flat path with color along the path
         fig, axs = plt.subplots()
-        plot_flat_path_with_color(input_path_0, input_path_single_section, axs)
+        # plot_flat_path_with_color(input_path_0, input_path_single_section, axs)
+        plot_flat_path_with_color(upsample_path(input_path_0, by_factor=trace_upsample_factor),
+                                  upsample_path(input_path_single_section, by_factor=trace_upsample_factor),
+                                  axs)
         # plot circle showing relative diameter of the sphere
         if forced_best_scale:
             circle_rad = 1 / forced_best_scale
@@ -411,16 +450,17 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
         mlab.show()
 
     sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale, nframes=nframes)
-    sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale, nframes=nframes)
+    sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale,
+                                                       nframes=nframes)
 
     if not forced_best_scale:
         if range_for_searching_the_roots == 'auto':
             index_where_area_crosses_pi = np.argmax(np.abs(gb_areas) > np.pi)
             range_for_searching_the_roots = [sweeped_scales[index_where_area_crosses_pi-1],
                                              sweeped_scales[index_where_area_crosses_pi]]
-            print(f'Auto range for roots: {range_for_searching_the_roots}')
+            logging.debug(f'Auto range for roots: {range_for_searching_the_roots}')
         best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=range_for_searching_the_roots)
-        print(f'Best scale: {best_scale}')
+        logging.info(f'Best scale: {best_scale}')
 
         forced_best_scale = best_scale
 
@@ -462,19 +502,18 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
 
         plot_mismatches_vs_scale(ax_angle, input_path_0, sweeped_scales, mismatch_angles,
                                  mark_one_scale=plot_solution,
-                                 scale_to_mark=forced_best_scale)
+                                 scale_to_mark=best_scale)
         plot_gb_areas(ax_area, sweeped_scales, gb_areas, mark_one_scale=plot_solution,
-                      scale_to_mark=forced_best_scale)
+                      scale_to_mark=best_scale)
         for ax in [ax_angle, ax_area]:
             ax.set_aspect('auto')
             ax.set_xlim(-1, maxscale)
 
         # Plot the 3D and show it in the matplotlib subplot
         mlab.options.offscreen = True
-        trace_upsample_factor = 100
-        mfig = plot_spherical_trace_with_color_along_the_trace(upsample_path(input_path_0, by_factor=trace_upsample_factor),
-                                                               upsample_path(input_path_single_section, by_factor=trace_upsample_factor),
-                                                               best_scale)
+        mfig = plot_spherical_trace_with_color_along_the_trace(
+            upsample_path(input_path_0, by_factor=trace_upsample_factor),
+            upsample_path(input_path_single_section, by_factor=trace_upsample_factor), best_scale)
         # img = mlab.screenshot()
         f = mlab.gcf()
         f.scene._lift()
@@ -489,9 +528,9 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
         # plt.show()
 
 def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian_path_1/figures/frames_scalesweep',
-                        npoints=300, minscale=0.01, maxscale=26, figsizefactor=0.85, circle_center=[0, 0],
+                        npoints=300, minscale=0.01, maxscale=26, circle_center=[0, 0],
                         circlealpha=1, plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
-                        nframes=10, indices_to_plot = [3, 7], trace_upsample_factor=100):
+                        nframes=10, indices_to_plot = [3, 7], spherical_trace_upsample_factor=100):
     """
     Tests existence of two-period trajectoid for a given path. It will also plot the mismatch angle and the
     Gauss-Bonnet area enclosed by the first period and great arc connecting its ends. Mismatch angles and areas will be
@@ -500,17 +539,10 @@ def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian
     :param path_type: String. Chooses the input path to be tested. So far, can take values "brownian", "spiral", "narrow",
                         "sine", "brownian-smooth", "zigzag", "zigzag2".
     :param path_for_frames: String (path). Path to folder where the output plots will be saved.
-    :param forced_best_scale: Bool "False" or Float. As a float value, controls the value of scale factor for which the first colored
-                              spherical trace will be plotted. It must be between the minscale and maxscale.
-                              Red dot on the plots will also be plotted at this scale factor. If 'False', the plotting will
-                              instead be done for the true "best scale" found by true minimization on the previous
-                              launch of this script.
     :param npoints: Integer. Number of values of scale factor at which enclosed areas and angular
                     mismatch will be evaluated.
     :param minscale: Float. Minimum value of scale factor to be plotted.
     :param maxscale: Float. Maximum value of scale factor to be plotted.
-    :param figsizefactor: Scales the output images. This is only useful for making proper font sizes in the final plots
-                          in the paper
     :param circle_center: Tuple of two floats. Location of circle illustrating the size of the rolling sphere relative to the path.
     :param circlealpha: Float. Alpha (opacity) of circle illustrating the size of the rolling sphere relative to the path.
     :param plot_solution: Bool. Whether to plot the red dot (at 'forced_best_scale') on the plots of area and mismatch angle.
@@ -519,13 +551,18 @@ def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian
                                           will be used as right end of range, and the previous point as the lft end of range.
     :param do_plot: Boolean. Whether to plot some of the plots.
     :param path_parameter: Optional parameter that controls features of some types of the path.
+    :param indices_to_plot: list of two integers. Indices of the path nodes that will be marked by blue and green
+                            points on the flat plot and on the spherical trace
+    :param spherical_trace_upsample_factor: Integer. The path will be upsampled by this factor before plotting its trace
+                                            on the sphere.
     """
     # input_path_single_section = make_random_path(seed=1, amplitude=3, make_ends_horizontal='both', end_with_zero=True)
     input_path_single_section = select_path_by_path_type(path_parameter, path_type)
     input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=False)
 
     sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale, nframes=npoints)
-    sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale, nframes=npoints)
+    sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale,
+                                                       nframes=npoints)
 
     if maxscale == 'best':
         if range_for_searching_the_roots == 'auto':
@@ -581,9 +618,10 @@ def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian
             ax.set_xlim(-1, maxscale)
 
         # Plot the 3D and show it in the matplotlib subplot
-        mfig = plot_spherical_trace_with_color_along_the_trace(upsample_path(input_path_0, by_factor=trace_upsample_factor),
-                                                               upsample_path(input_path_single_section, by_factor=trace_upsample_factor),
-                                                               scale_to_plot, sphere_opacity=0.6)
+        mfig = plot_spherical_trace_with_color_along_the_trace(
+            upsample_path(input_path_0, by_factor=spherical_trace_upsample_factor),
+            upsample_path(input_path_single_section, by_factor=spherical_trace_upsample_factor), scale_to_plot,
+            sphere_opacity=0.6)
         # plot certain points
         point_radius = 0.1
         sphere_trace_single_section = trace_on_sphere(scale_to_plot * input_path_single_section, kx=1, ky=1)
@@ -722,6 +760,18 @@ if __name__ == '__main__':
     #                           path_parameter=0.1
     #                           )
 
+    # test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
+    #                           forced_best_scale=1, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                           nframes=2000,
+    #                           maxscale=120,#70,
+    #                           figsizefactor=0.85,
+    #                           circle_center=[-1.7, -0.6],
+    #                           circlealpha=1,
+    #                           plot_solution=True,
+    #                           range_for_searching_the_roots='auto',  #(10.6, 10.9),
+    #                           path_parameter=0.6
+    #                           )
+
     # # Animating the path parameter sweep
     # power_here = 3
     # for frame_id, path_parameter in enumerate(np.linspace((0.05)**(1/power_here), (0.3)**(1/power_here), 80)**power_here):
@@ -739,20 +789,38 @@ if __name__ == '__main__':
     #                               fig_title='Taper fraction: '
     #                               )
 
-    power_here=1
-    for frame_id, path_parameter in enumerate(np.linspace((0.01)**(1/power_here), (0.4)**(1/power_here), 80)**power_here):
-        test_trajectoid_existence(path_type='zigzag_kinked', path_for_figs='examples/zigzag_kinked/figures',
+    # power_here=1
+    # for frame_id, path_parameter in enumerate(np.linspace((0.01)**(1/power_here), (0.4)**(1/power_here), 80)**power_here):
+    #     test_trajectoid_existence(path_type='zigzag_kinked', path_for_figs='examples/zigzag_kinked/figures',
+    #                               forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                               nframes=2000,
+    #                               maxscale=112,#70,
+    #                               figsizefactor=0.85,
+    #                               circle_center=[1.3, -0.8],
+    #                               circlealpha=1,
+    #                               plot_solution=False,
+    #                               range_for_searching_the_roots=(1, 1.1),
+    #                               path_parameter=path_parameter,
+    #                               path_for_united_fig=f'examples/zigzag_kinked/figures/frames_paramsweep/{frame_id:06d}.png',
+    #                               fig_title='Declination of first kink arm, rad: '
+    #                               )
+
+    # Animating the path parameter sweep
+    power_here = 3
+    for frame_id, path_parameter in enumerate(np.linspace((0.08)**(1/power_here), (0.6)**(1/power_here), 80)**power_here):
+        test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
                                   forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-                                  nframes=2000,
-                                  maxscale=112,#70,
+                                  nframes=6000,
+                                  maxscale=120,#70,
                                   figsizefactor=0.85,
                                   circle_center=[1.3, -0.8],
                                   circlealpha=1,
-                                  plot_solution=False,
-                                  range_for_searching_the_roots=(1, 1.1),
+                                  plot_solution=True,
+                                  range_for_searching_the_roots='auto',  #(10.6, 10.9),
                                   path_parameter=path_parameter,
-                                  path_for_united_fig=f'examples/zigzag_kinked/figures/frames_paramsweep/{frame_id:06d}.png',
-                                  fig_title='Declination of first kink arm, rad: '
+                                  path_for_united_fig=f'examples/zigzag_kinked_asymmetric/figures/frames_paramsweep/{frame_id:06d}.png',
+                                  fig_title='Asymmetry: ',
+                                  trace_upsample_factor=300
                                   )
 
     ### Scale sweep animations
@@ -764,4 +832,4 @@ if __name__ == '__main__':
     # animate_scale_sweep(path_type='zigzag', path_for_frames='examples/zigzag_1/figures/frames_scalesweep',
     #                     npoints=700, maxscale=10, figsizefactor=0.85, circle_center=[1.3, -0.8], circlealpha=1,
     #                     plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
-    #                     nframes=200, indices_to_plot = [7, 21], trace_upsample_factor=10)
+    #                     nframes=200, indices_to_plot = [7, 21], spherical_trace_upsample_factor=10)

@@ -12,6 +12,11 @@ from sklearn.metrics import pairwise_distances
 from numba import jit
 from scipy.signal import savgol_filter
 from functools import lru_cache
+from tqdm import tqdm
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 # from great_circle_arc import intersects\
 
 USED_3D_PLOTTING_PACKAGE = 'mayavi'
@@ -191,7 +196,7 @@ def rotation_to_previous_point(i, data):
 import sys
 sys.setrecursionlimit(3000)
 
-def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True, verbose=False):
+def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True):
     if use_cache:
         global last_path
         global cached_rotations_to_origin
@@ -229,12 +234,10 @@ def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True
             if np.isclose(data, last_path).all():
                 cache_have_same_path = True
                 cached_rotations_to_origin[index_in_trajectory] = net_rotation_matrix
-                if verbose:
-                    print(f'Updated cache, index_in_trajectory = {index_in_trajectory}')
+                logging.debug(f'Updated cache, index_in_trajectory = {index_in_trajectory}')
         if not cache_have_same_path:
             # clear cache
-            if verbose:
-                print('Clearing cache.')
+            logging.debug('Clearing cache.')
             cached_rotations_to_origin = dict()
             cached_rotations_to_origin[index_in_trajectory] = net_rotation_matrix
             last_path = np.copy(data)
@@ -601,7 +604,7 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declinatio
     for i, declination_angle in enumerate(declination_angles):
         mismatches.append(mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=npoints,
                                                            min_curvature_radius=min_curvature_radius))
-        print(f'Preliminary screening, step {i} completed')
+        logging.debug(f'Preliminary screening, step {i} completed')
     mismatches = np.array(mismatches)
     # use split by mask here and find roots in each subsection
     mask_here = mismatches[:,1]
@@ -622,20 +625,20 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declinatio
         position = np.argmax(declination_angles > initial_guess)
         maxangle = declination_angles[position]
         minangle = declination_angles[position-1]
-        print(f'Sign-changing interval: from {minangle} to {maxangle}')
+        logging.debug(f'Sign-changing interval: from {minangle} to {maxangle}')
         # initial_guess = declination_angles[np.argmin(np.abs(np.array(mismatches)))]
-        print(f'Initial guess: {initial_guess}')
+        logging.debug(f'Initial guess: {initial_guess}')
         if do_plot:
             # mlab.show()
             plt.plot(declination_angles, mismatches, 'o-')
             plt.show()
         def left_hand_side(x): # the function whose root we want to find
-            print(f'Sampling function at x={x}')
+            logging.debug(f'Sampling function at x={x}')
             return mismatch_angle_for_smooth_bridge(x, input_path, npoints=npoints, return_error_messages=False,
                                                     min_curvature_radius=min_curvature_radius)
         best_declination = brentq(left_hand_side, a=minangle, b=maxangle, maxiter=20, xtol=0.001, rtol=0.004)
-        print(f'Best declination: {best_declination}')
-        print(f'Best mismatch: {left_hand_side(best_declination)}')
+        logging.debug(f'Best declination: {best_declination}')
+        logging.debug(f'Best mismatch: {left_hand_side(best_declination)}')
         return best_declination
 
 
@@ -1054,16 +1057,16 @@ def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
     scale_min = scale_range[0]
     # if the sign of mismatch angle is same at the ends of the region -- there is no solution
     if mismatch_angle_for_path(input_path_0 * scale_max) * mismatch_angle_for_path(input_path_0 * scale_min) > 0:
-        print('Sign of mismatch is the same on both sides of the interval.')
-        print(f'Mismatch at max scale = {mismatch_angle_for_path(input_path_0 * scale_min)}')
-        print(f'Mismatch at min scale = {mismatch_angle_for_path(input_path_0 * scale_max)}')
+        logging.info('Sign of mismatch is the same on both sides of the interval.')
+        logging.info(f'Mismatch at max scale = {mismatch_angle_for_path(input_path_0 * scale_min)}')
+        logging.info(f'Mismatch at min scale = {mismatch_angle_for_path(input_path_0 * scale_max)}')
         return False
     def left_hand_side(x):  # the function whose root we want to find
-        print(f'Sampling function at x={x}')
+        logging.debug(f'Sampling function at x={x}')
         return mismatch_angle_for_path(input_path_0 * x)
 
     best_scale = brentq(left_hand_side, a=scale_min, b=scale_max, maxiter=80, xtol=0.00001, rtol=0.00005)
-    print(f'Minimized mismatch angle = {left_hand_side(best_scale)}')
+    logging.debug(f'Minimized mismatch angle = {left_hand_side(best_scale)}')
     return best_scale
 
 def double_the_path(input_path_0, do_plot=False, do_sort=True):
@@ -1119,16 +1122,16 @@ def get_gb_area(input_path):
         sum_angle += angle
         gauss_bonnet_area = 2 * np.pi - sum_angle
     # print(angles)
-    print(f'Sum angle = {sum_angle / np.pi} pi')
-    print(f'Area = {gauss_bonnet_area / np.pi} pi')
+    logging.debug(f'Sum angle = {sum_angle / np.pi} pi')
+    logging.debug(f'Area = {gauss_bonnet_area / np.pi} pi')
     return gauss_bonnet_area
 
-def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 100):
+def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100):
     '''This function takes into account the possibly changing rotation index of the spherical trace.'''
     gauss_bonnet_areas = []
     sweeped_scales = np.linspace(minscale, maxscale, nframes)
-    for frame_id, scale in enumerate(sweeped_scales):
-        print(f'Computing GB_area for scale {scale}')
+    for frame_id, scale in enumerate(tqdm(sweeped_scales, desc='Computing oriented (Gauss-Bonnet) areas')):
+        logging.debug(f'Computing GB_area for scale {scale}')
         input_path_scaled = input_path * scale
         gauss_bonnet_areas.append(get_gb_area(input_path_scaled))
 
@@ -1194,17 +1197,12 @@ def plot_flat_path_with_color(input_path, half_of_input_path, axs):
 
     plt.axis('equal')
 
-def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half, scale,
-                                                    verbose=False, plotting_upsample_factor = 1,
+def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half, scale, plotting_upsample_factor=1,
                                                     sphere_opacity=.8):
     length_from_start_to_here = length_along_the_path(input_path)
-    if verbose:
-        t0 = time.time()
     sphere_trace = trace_on_sphere(upsample_path(scale * input_path,
                                                  by_factor=plotting_upsample_factor), kx=1, ky=1)
-    if verbose:
-        print(f'Seconds passed: {time.time() - t0:.3f}')
-        print('Mlab plot begins...')
+    logging.debug('Mlab plot begins...')
     core_radius = 1
     tube_radius = 0.01
     last_index = sphere_trace.shape[0] // 2
