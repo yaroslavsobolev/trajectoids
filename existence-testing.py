@@ -284,9 +284,73 @@ def make_zigzag_kinked_asymm(zigzag_edge_length_without_kink=np.pi / 2,
     input_path[:, 1] = input_path[:, 1] - input_path[0, 1]
     return input_path, np.array(tips)
 
-def make_zigzag_with_smoothed_corner(zigzag_edge_length_without_kink=np.pi / 2,
+def add_arc(center, start_angle, end_angle, radius, npoints):
+    angles = np.linspace(start_angle, end_angle, npoints)
+    xs = radius * np.cos(angles)
+    ys = radius * np.sin(angles)
+    return center + np.stack((xs, ys)).T
+
+def make_zigzag_with_smoothed_corner(zigzag_edge_length_without_smoothing=np.pi / 2,
                         zigzag_corner_angle=np.pi / 4,
-                        radius_of_curvature=np.pi / 10):
+                        radius_of_curvature=0.02,
+                                     Ns=3, halfarc_segments_number=15):
+    '''Makes an zigzag whose corners are smoothed by a given radius of curvature.
+    It consists of two straight lines and three arcs.'''
+
+    # add first flat arc segment
+    arc_angle_span = np.pi/2 - zigzag_corner_angle/2
+    center = np.array([0,
+                       -1 * radius_of_curvature / np.cos(arc_angle_span)])
+    input_path = add_arc(center, start_angle=np.pi/2, end_angle=np.pi/2 - arc_angle_span,
+                         radius=radius_of_curvature, npoints=halfarc_segments_number)
+
+    # add first straight segment
+    length_of_straight_segment = zigzag_edge_length_without_smoothing - 2 * radius_of_curvature * np.tan(arc_angle_span)
+    startpoint = input_path[-1, :]
+    new_section = add_interval(startpoint, angle=-1 * (np.pi / 2 - zigzag_corner_angle / 2),
+                               length=length_of_straight_segment, Ns=Ns)
+    input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+
+    # Add middle arc
+    center = np.array([zigzag_edge_length_without_smoothing * np.sin(zigzag_corner_angle / 2),
+                       -1 * zigzag_edge_length_without_smoothing * np.cos(zigzag_corner_angle / 2) +
+                                                                        radius_of_curvature / np.cos(arc_angle_span)])
+    new_section = add_arc(center, start_angle=-np.pi/2 - arc_angle_span, end_angle=-np.pi/2 + arc_angle_span,
+                         radius=radius_of_curvature, npoints=halfarc_segments_number * 2)
+    input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+
+    # add first straight segment
+    length_of_straight_segment = zigzag_edge_length_without_smoothing - 2 * radius_of_curvature * np.tan(arc_angle_span)
+    startpoint = input_path[-1, :]
+    new_section = add_interval(startpoint, angle=np.pi / 2 - zigzag_corner_angle / 2,
+                               length=length_of_straight_segment, Ns=Ns)
+    input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+
+    # add last flat arc segment
+    arc_angle_span = np.pi/2 - zigzag_corner_angle/2
+    center = np.array([zigzag_edge_length_without_smoothing * np.sin(zigzag_corner_angle / 2) * 2,
+                       -1 * radius_of_curvature / np.cos(arc_angle_span)])
+    new_section = add_arc(center, start_angle=np.pi/2 + arc_angle_span, end_angle=np.pi/2,
+                         radius=radius_of_curvature, npoints=halfarc_segments_number)
+    input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+
+    # input_path = np.array([[0, 0]])
+
+    # angles = [-1 * (np.pi / 2 - zigzag_corner_angle / 2),
+    #           np.pi / 2 - zigzag_corner_angle / 2,]
+    # lengths = [length_of_straight_segment] * 2
+    # for i, angle in enumerate(angles):
+    #     startpoint = input_path[-1, :]
+    #     new_section = add_interval(startpoint, angle, lengths[i], Ns=Ns)
+    #     input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+    #
+    # input_path[:, 1] = input_path[:, 1] - input_path[0, 1]
+    return input_path
+
+# input_path = make_zigzag_with_smoothed_corner()
+# plt.plot(input_path[:, 0], input_path[:, 1], 'o-', alpha=0.3)
+# plt.axis('equal')
+# plt.show()
 
 # def make_zigzag2(a):
 #     beta = np.pi/8
@@ -374,6 +438,8 @@ def select_path_by_path_type(path_parameter, path_type):
         input_path_single_section, tips = make_zigzag_kinked(kink_angle_1=path_parameter, kink_angle_2=path_parameter*4)
     elif path_type == 'zigzag_kinked_asymmetric':
         input_path_single_section, tips = make_zigzag_kinked_asymm(asymmetry=path_parameter)
+    elif path_type == 'zigzag_smoothed':
+        input_path_single_section = make_zigzag_with_smoothed_corner(radius_of_curvature=path_parameter)
     return input_path_single_section
 
 
@@ -446,7 +512,9 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
         fig.savefig(path_for_figs + f'/{path_type}_path.png', dpi=300)
         plt.show()
 
-        plot_spherical_trace_with_color_along_the_trace(input_path_0, input_path_single_section, forced_best_scale)
+        plot_spherical_trace_with_color_along_the_trace(upsample_path(input_path_0, by_factor=trace_upsample_factor),
+                                                        upsample_path(input_path_single_section, by_factor=trace_upsample_factor),
+                                                        forced_best_scale)
         mlab.show()
 
     sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale, nframes=nframes)
@@ -487,7 +555,9 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
         ax_area = fig.add_subplot(gs1[2, :])
 
         # Plot flat path with color along the path
-        plot_flat_path_with_color(input_path_0, input_path_single_section, ax_path)
+        plot_flat_path_with_color(upsample_path(input_path_0, by_factor=trace_upsample_factor),
+                                  upsample_path(input_path_single_section, by_factor=trace_upsample_factor),
+                                  ax_path)
         # plot circle showing relative diameter of the sphere
         circle_rad = 1 / best_scale
         if plot_solution:
@@ -630,10 +700,8 @@ def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian
             point_here = sphere_trace_single_section[index_to_plot]
             mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=point_radius, color=colors_of_trace_points[i])
         sphere_trace_full = trace_on_sphere(scale_to_plot * input_path_0, kx=1, ky=1)
-        point_here = sphere_trace_full[-1]
-        mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=point_radius, color=(0, 0, 0))
-        point_here = sphere_trace_full[0]
-        mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=point_radius, color=(0, 0, 0))
+        for point_here in [sphere_trace_full[-1], sphere_trace_full[0]]:
+            mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=point_radius, color=(0, 0, 0))
 
         # img = mlab.screenshot()
         f = mlab.gcf()
@@ -739,17 +807,17 @@ if __name__ == '__main__':
     # test_trajectoid_existence(path_type='zigzag_tapered', path_for_figs='examples/zigzag_tapered/figures',
     #                           forced_best_scale=26.61504628916999, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
     #                           nframes=2000,
-    #                           maxscale=60,#70,
+    #                           maxscale=28,#70,
     #                           figsizefactor=0.85,
-    #                           circle_center=[-1.7, -0.6],
+    #                           circle_center=[1.2, -0.8],
     #                           circlealpha=1,
     #                           plot_solution=True,
     #                           range_for_searching_the_roots='auto',  #(10.6, 10.9),
-    #                           path_parameter=0.05
+    #                           path_parameter=0.1
     #                           )
 
     # test_trajectoid_existence(path_type='zigzag_kinked', path_for_figs='examples/zigzag_kinked/figures',
-    #                           forced_best_scale=1, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                           forced_best_scale=19.6017, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
     #                           nframes=2000,
     #                           maxscale=40,#70,
     #                           figsizefactor=0.85,
@@ -760,17 +828,17 @@ if __name__ == '__main__':
     #                           path_parameter=0.1
     #                           )
 
-    # test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
-    #                           forced_best_scale=1, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-    #                           nframes=2000,
-    #                           maxscale=120,#70,
-    #                           figsizefactor=0.85,
-    #                           circle_center=[-1.7, -0.6],
-    #                           circlealpha=1,
-    #                           plot_solution=True,
-    #                           range_for_searching_the_roots='auto',  #(10.6, 10.9),
-    #                           path_parameter=0.6
-    #                           )
+    test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
+                              forced_best_scale=21.012723684811053, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+                              nframes=2000,
+                              maxscale=28,#70,
+                              figsizefactor=0.85,
+                              circle_center=[1.05, -0.95],
+                              circlealpha=1,
+                              plot_solution=True,
+                              range_for_searching_the_roots='auto',  #(10.6, 10.9),
+                              path_parameter=0.370
+                              )
 
     # # Animating the path parameter sweep
     # power_here = 3
@@ -805,23 +873,40 @@ if __name__ == '__main__':
     #                               fig_title='Declination of first kink arm, rad: '
     #                               )
 
-    # Animating the path parameter sweep
-    power_here = 3
-    for frame_id, path_parameter in enumerate(np.linspace((0.08)**(1/power_here), (0.6)**(1/power_here), 80)**power_here):
-        test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
-                                  forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-                                  nframes=6000,
-                                  maxscale=120,#70,
-                                  figsizefactor=0.85,
-                                  circle_center=[1.3, -0.8],
-                                  circlealpha=1,
-                                  plot_solution=True,
-                                  range_for_searching_the_roots='auto',  #(10.6, 10.9),
-                                  path_parameter=path_parameter,
-                                  path_for_united_fig=f'examples/zigzag_kinked_asymmetric/figures/frames_paramsweep/{frame_id:06d}.png',
-                                  fig_title='Asymmetry: ',
-                                  trace_upsample_factor=300
-                                  )
+    # # Animating the path parameter sweep
+    # power_here = 3
+    # for frame_id, path_parameter in enumerate(np.linspace((0.08)**(1/power_here), (0.6)**(1/power_here), 80)**power_here):
+    #     test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
+    #                               forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                               nframes=6000,
+    #                               maxscale=120,#70,
+    #                               figsizefactor=0.85,
+    #                               circle_center=[1.3, -0.8],
+    #                               circlealpha=1,
+    #                               plot_solution=True,
+    #                               range_for_searching_the_roots='auto',  #(10.6, 10.9),
+    #                               path_parameter=path_parameter,
+    #                               path_for_united_fig=f'examples/zigzag_kinked_asymmetric/figures/frames_paramsweep/{frame_id:06d}.png',
+    #                               fig_title='Asymmetry: ',
+    #                               trace_upsample_factor=300
+    #                               )
+
+    # # Animating the path parameter sweep
+    # power_here = 3
+    # for frame_id, path_parameter in enumerate(np.linspace((0.03)**(1/power_here), (0.25)**(1/power_here), 80)**power_here):
+    #     test_trajectoid_existence(path_type='zigzag_smoothed', path_for_figs='examples/zigzag_smoothed/figures',
+    #                               forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                               nframes=800,
+    #                               maxscale=45,#70,
+    #                               figsizefactor=0.85,
+    #                               circle_center=[1.202, -0.95],
+    #                               circlealpha=1,
+    #                               plot_solution=True,
+    #                               range_for_searching_the_roots='auto',  #(10.6, 10.9),
+    #                               path_parameter=path_parameter,
+    #                               path_for_united_fig=f'examples/zigzag_smoothed/figures/frames_paramsweep/{frame_id:06d}.png',
+    #                               fig_title='Corner curvature radius: '
+    #                               )
 
     ### Scale sweep animations
     # animate_scale_sweep(path_type='zigzag_tapered', path_for_frames='examples/zigzag_tapered/figures/frames_scalesweep',
@@ -829,7 +914,7 @@ if __name__ == '__main__':
     #                     plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
     #                     nframes=200, indices_to_plot = [3, 7])
 
-    # animate_scale_sweep(path_type='zigzag', path_for_frames='examples/zigzag_1/figures/frames_scalesweep',
-    #                     npoints=700, maxscale=10, figsizefactor=0.85, circle_center=[1.3, -0.8], circlealpha=1,
-    #                     plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
-    #                     nframes=200, indices_to_plot = [7, 21], spherical_trace_upsample_factor=10)
+    animate_scale_sweep(path_type='zigzag', path_for_frames='examples/zigzag_1/figures/frames_scalesweep',
+                        npoints=700, maxscale=10, figsizefactor=0.85, circle_center=[1.3, -0.8], circlealpha=1,
+                        plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
+                        nframes=200, indices_to_plot = [7, 21], spherical_trace_upsample_factor=10)

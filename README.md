@@ -15,6 +15,7 @@ Clone (checkout) this repository after installing these dependencies:
 
 ## Running
 
+### Computing the trajectoid shape from a path
 Example usage with loading input path from an image:
 ```
 from compute-trajectoids import *
@@ -30,6 +31,12 @@ This will compute the same number of "cutting boxes" as the number of points in 
 these boxes as `.obj` files into the `folder_for_meshes` directory. For obtaining the final trajetroid mesh,
 these boxes must be subtracted from a sphere of radius `R` greater than the core radius `r=1`.
 
+### Testing whether a two-period trajectoid exists for a various path types
+
+See `existence_testing.py`. Uncomment the parts of `main` that check existence for the path type you are
+interested in and run. This script also contains functions for making animations shown in the Movie 3 of the paper.
+
+<!---
 ## Citation
 If you use this code, please cite our paper:
 ```
@@ -40,3 +47,4 @@ If you use this code, please cite our paper:
   year={2022}
 }
 ```
+-->

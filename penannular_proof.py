@@ -80,6 +80,42 @@ def align_view(scene):
     scene.scene.camera.clipping_range = [3.573025799931812, 10.592960367304393]
     scene.scene.camera.compute_view_plane_normal()
 
+def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
+
+    ## This code injects the sampled point at the solution_scale. Otherwise the root can be not at one of sampled points
+    # ii = np.searchsorted(sweeped_scales, solution_scale)
+    # sweeped_scales = np.insert(sweeped_scales, ii, solution_scale)
+    # mismatch_angles = np.insert(mismatch_angles, ii, np.pi * np.sign(interp1d(sweeped_scales, gb_areas)(solution_scale)))
+
+    ax.plot(sweeped_scales, gb_areas)
+    ax.axhline(y=np.pi, color='black', alpha=0.5)
+    ax.axhline(y=0, color='black', alpha=0.3)
+    ax.axhline(y=-1 * np.pi, color='black', alpha=0.5)
+    if mark_one_scale:
+        # ax.scatter([solution_scale], [np.pi * np.sign(interp1d(sweeped_scales, gb_areas)(solution_scale))], s=20, color='red')
+        value_at_scale_to_mark = interpolate.interp1d(sweeped_scales, gb_areas)(scale_to_mark)
+        ax.scatter([scale_to_mark], [value_at_scale_to_mark], s=20, color='red')
+    ax.set_yticks([-2 * np.pi, -np.pi, 0, np.pi, 2 * np.pi])
+    ax.set_yticklabels(['-2π', '-π', '0', 'π', '2π'])
+    ax.set_ylim(-np.pi * 2 * 1.01, np.pi * 2 * 1.01)
+    ax.set_ylabel('Area $S(\sigma)$')
+    ax.set_xlabel('Path\'s scale factor $\sigma$')
+
+plotscalefac = 0.8
+fig, ax = plt.subplots(figsize=(5*plotscalefac,2*plotscalefac))
+input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
+                                                   minscale=0.01,
+                                                   maxscale=1.16,
+                                                   nframes=300)
+plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale=True,
+              scale_to_mark=1)
+plt.ylim(-0.01, 4)
+plt.tight_layout()
+fig.savefig('examples/penannular_proof/areas.png', dpi=300)
+plt.show()
+
+
 # input_path_symm = make_path(xlen=3.81, r=1.23, Npath=150, shift=0, do_double=False) * best_scale
 # plt.plot(input_path_symm[:, 0], input_path_symm[:, 1], '--', color='C2', label='Symmetric')
 # plt.scatter(input_path_symm[0, 0], input_path_symm[0, 1], color='black')
@@ -215,9 +251,10 @@ def make_animation_of_rotational_symmetry():
             for x in [object1]:
                 x.remove()
 
-sweeped_scales, mismatch_angles = mismatches_for_all_scales()
-plt.plot(sweeped_scales, np.abs(mismatch_angles))
-plt.show()
+# sweeped_scales, mismatch_angles = mismatches_for_all_scales()
+# plt.plot(sweeped_scales, np.abs(mismatch_angles))
+# plt.show()
+
 
 # make_animation_of_rotational_symmetry()
 
