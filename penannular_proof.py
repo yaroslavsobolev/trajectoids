@@ -95,32 +95,64 @@ def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
         # ax.scatter([solution_scale], [np.pi * np.sign(interp1d(sweeped_scales, gb_areas)(solution_scale))], s=20, color='red')
         value_at_scale_to_mark = interpolate.interp1d(sweeped_scales, gb_areas)(scale_to_mark)
         ax.scatter([scale_to_mark], [value_at_scale_to_mark], s=20, color='red')
+        scale_to_mark = 0.37
+        value_at_scale_to_mark = interpolate.interp1d(sweeped_scales, gb_areas)(scale_to_mark)
+        ax.scatter([scale_to_mark], [value_at_scale_to_mark], s=20, color='C0')
+        scale_to_mark = 0.649
+        value_at_scale_to_mark = interpolate.interp1d(sweeped_scales, gb_areas)(scale_to_mark)
+        ax.scatter([scale_to_mark], [value_at_scale_to_mark], s=20, color='C0')
     ax.set_yticks([-2 * np.pi, -np.pi, 0, np.pi, 2 * np.pi])
     ax.set_yticklabels(['-2π', '-π', '0', 'π', '2π'])
     ax.set_ylim(-np.pi * 2 * 1.01, np.pi * 2 * 1.01)
     ax.set_ylabel('Area $S(\sigma)$')
     ax.set_xlabel('Path\'s scale factor $\sigma$')
 
-plotscalefac = 0.8
-fig, ax = plt.subplots(figsize=(5*plotscalefac,2*plotscalefac))
+# # First attempt:
+# plotscalefac = 0.8
+# fig, ax = plt.subplots(figsize=(5*plotscalefac,2*plotscalefac))
+# input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+# sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
+#                                                    minscale=0.01,
+#                                                    maxscale=1.16,
+#                                                    nframes=300)
+# plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale=True,
+#               scale_to_mark=1)
+# plt.ylim(-0.01, 4)
+# plt.tight_layout()
+# fig.savefig('examples/penannular_proof/areas.png', dpi=300)
+# plt.show()
+
+# # Second attempt:
+# plotscalefac = 0.65
+# fig, ax = plt.subplots(figsize=(4.3*plotscalefac,2.5*plotscalefac))
+# input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+# sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
+#                                                    minscale=0.01,
+#                                                    maxscale=1.16,
+#                                                    nframes=30)
+# plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale=True,
+#               scale_to_mark=1)
+# plt.ylim(-0.01, 4)
+# plt.tight_layout()
+# fig.savefig('examples/penannular_proof/areas.png', dpi=300)
+# plt.show()
+
+
 input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
-sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
-                                                   minscale=0.01,
-                                                   maxscale=1.16,
-                                                   nframes=300)
-plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale=True,
-              scale_to_mark=1)
-plt.ylim(-0.01, 4)
-plt.tight_layout()
-fig.savefig('examples/penannular_proof/areas.png', dpi=300)
-plt.show()
-
-
-# input_path_symm = make_path(xlen=3.81, r=1.23, Npath=150, shift=0, do_double=False) * best_scale
 # plt.plot(input_path_symm[:, 0], input_path_symm[:, 1], '--', color='C2', label='Symmetric')
-# plt.scatter(input_path_symm[0, 0], input_path_symm[0, 1], color='black')
-# plt.scatter(input_path_symm[-1, 0], input_path_symm[-1, 1], color='black')
-# _ = double_the_path(input_path_single_section, do_plot=True)
+# plt.show()
+fig = plt.figure(11)
+_ = double_the_path(input_path_single_section, do_plot=False)
+plt.plot(_[:, 0], _[:, 1], '-', color='C0')
+plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1], '-', color='C2')  # , label='Asymmetric')
+plt.axis('equal')
+plt.scatter(input_path_single_section[0, 0], input_path_single_section[0, 1], color='black', zorder=100)
+plt.scatter(input_path_single_section[-1, 0], input_path_single_section[-1, 1], color='black', zorder=100)
+plt.plot([0, input_path_single_section[-1, 0]], [0, 0], '--', color='grey', linewidth=0.8, zorder=-100)
+fig.savefig('examples/penannular_proof/path_plot.png', dpi=300)
+plt.plot()
+
+plt.show()
 tube_radius = 0.01
 core_radius = 1
 
@@ -145,8 +177,9 @@ align_view(mfig)
 # mlab.savefig('examples/penannular_proof/full_trace.png')
 mlab.show()
 
-def make_animation_of_scaling_sweep():
-    tube_radius = 0.01
+def make_animation_of_scaling_sweep(tube_radius = 0.01,
+                                    frames_folder='examples/penannular_proof/scale-sweep-frames/',
+                                    sphere_lines_are_thinner_by=4):
     core_radius = 1
 
     best_scale = 1.006534368463883
@@ -155,11 +188,12 @@ def make_animation_of_scaling_sweep():
 
     mfig = mlab.figure(size=(1024, 768), \
                 bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
-    plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+    plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / sphere_lines_are_thinner_by)
     align_view(mfig)
     nframes = 100
     mismatch_angles = []
     for frame_id, scale in enumerate(np.linspace(0.1*best_scale, best_scale, nframes)):
+        print(f'Frame: {frame_id}, scale: {scale}')
         input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * scale
         sphere_trace_single_section = trace_on_sphere(input_path_single_section, kx=1, ky=1)
         mismatch_angles.append(mismatch_angle_for_path(input_path_single_section))
@@ -175,7 +209,7 @@ def make_animation_of_scaling_sweep():
         points_list = []
         for point_here in [sphere_trace_single_section[0, :], sphere_trace_single_section[-1, :]]:
             points_list.append(mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(0, 0, 0)))
-        mlab.savefig('examples/penannular_proof/scale-sweep-frames/{0:08d}.png'.format(frame_id))
+        mlab.savefig(frames_folder + '{0:08d}.png'.format(frame_id))
         for x in [object1, object2]:
             x.remove()
         for x in points_list:
@@ -250,6 +284,9 @@ def make_animation_of_rotational_symmetry():
         if frame_id > 0:
             for x in [object1]:
                 x.remove()
+
+make_animation_of_scaling_sweep(tube_radius = 0.05, frames_folder='examples/penannular_proof/scale-sweep-frames-1/',
+                                sphere_lines_are_thinner_by=10)
 
 # sweeped_scales, mismatch_angles = mismatches_for_all_scales()
 # plt.plot(sweeped_scales, np.abs(mismatch_angles))
