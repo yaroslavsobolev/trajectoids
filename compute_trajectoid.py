@@ -15,7 +15,7 @@ from functools import lru_cache
 from tqdm import tqdm
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 # from great_circle_arc import intersects\
 
@@ -1094,14 +1094,27 @@ def double_the_path(input_path_0, do_plot=False, do_sort=True):
 
     return sort_path(input_path_0)
 
-
-def get_gb_area(input_path):
+## This old implementation is wrong by a integer number of 2*pi
+def get_gb_area_deprecated(input_path):
     '''This function does not take into account the possibly changing rotation index of the spherical trace.
     It has to be accounted for in the downstream code.'''
     sphere_trace = trace_on_sphere(input_path, kx=1, ky=1, do_plot=False)
 
     # get total change of angle
     extended_trace = np.vstack((sphere_trace, sphere_trace[0, :], sphere_trace[1, :]))
+
+    #rotation angles on the extended path
+    def rotation_angle_from_point_to_point(i):
+        # from ith point to (i+1)th point of the extended path
+        if i <= input_path.shape[0]-2:
+            flat_vector_to_previous_point = input_path[i+1] - input_path[i]
+            rotation_angle = np.linalg.norm(flat_vector_to_previous_point)
+        elif i == (input_path.shape[0]-1):
+            rotation_angle = np.arccos(np.dot(sphere_trace[0], sphere_trace[-1]))
+        elif i == (input_path.shape[0]):
+            flat_vector_to_previous_point = input_path[1] - input_path[0]
+            rotation_angle = np.linalg.norm(flat_vector_to_previous_point)
+        return rotation_angle
 
     # angle change between consecutive arcs
     angles = []
@@ -1110,6 +1123,10 @@ def get_gb_area(input_path):
         first_point = extended_trace[i, :]
         central_point = extended_trace[i + 1, :]
         last_point = extended_trace[i + 2, :]
+        # These axes must be corrected. Right now they produce wrong rotation index, but correct area up to a multiple of 2*pi.
+        # In fact, it should be impossible to get areas just from spherical trace. Angle of each rotation must be additionally known.
+        # If closest angles is alpha. Real angle is 2*pi +- alpha. Depending on plus and minus, the direction of turn must be chosen.
+        # First, find the actual angles of these two rotations
         first_arc_axis = np.cross(first_point, central_point)
         second_arc_axis = np.cross(central_point, last_point)
         first_arc_axis = first_arc_axis / np.linalg.norm(first_arc_axis)
@@ -1125,6 +1142,110 @@ def get_gb_area(input_path):
     logging.debug(f'Sum angle = {sum_angle / np.pi} pi')
     logging.debug(f'Area = {gauss_bonnet_area / np.pi} pi')
     return gauss_bonnet_area
+
+def plot_3d_vector_with_origin(vector, vector_origin, color, tube_radius = 0.05):
+    vector_end = vector + vector_origin
+    points = np.vstack((vector_origin, vector_end))
+    mlab.points3d(vector_end[0], vector_end[1], vector_end[2], scale_factor=0.1, color=color)
+    mlab.plot3d(points[:, 0],
+                points[:, 1],
+                points[:, 2], color=color, tube_radius=tube_radius / 5, opacity=0.7)
+
+def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False, return_arc_normal=False):
+    '''This function does not take into account the possibly changing rotation index of the spherical trace.
+    It has to be accounted for in the downstream code.'''
+    sphere_trace = trace_on_sphere(input_path, kx=1, ky=1, do_plot=False)
+
+    # extend the trace by repeating its first two points again at the end
+    extended_trace = np.vstack((sphere_trace, sphere_trace[0, :], sphere_trace[1, :]))
+
+    # Change of direction of the flat path:
+    if flat_path_change_of_direction == 'auto':
+        signed_angles_list = [signed_angle_between_2d_vectors(input_path[i + 2] - input_path[i + 1],
+                                                              input_path[i + 1] - input_path[i])
+                             for i in range(input_path.shape[0] - 2)
+                             ]
+        flat_path_change_of_direction = np.sum(np.array(signed_angles_list))
+
+    # Change of direction due to 2 angles formed by great arc connecting the last and first point
+
+    # direction from point 0 to point 1, expressed as normal of the respective arc on the sphere_trace
+    if do_plot:
+        tube_radius = 0.05
+        core_radius=1
+        plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
+        l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+                        tube_radius=tube_radius, opacity=0.3)
+        colors = [(1, 0, 0), (0, 1, 0)]
+        for i, point_here in enumerate([sphere_trace[0], sphere_trace[-1]]):
+            mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=colors[i])
+        # mlab.axes()
+
+    path_start_direction_vector_flat = input_path[1] - input_path[0]
+    path_start_direction_vector_flat /= np.linalg.norm(path_start_direction_vector_flat)
+    path_start_direction_vector = np.array([path_start_direction_vector_flat[0],
+                                            path_start_direction_vector_flat[1],
+                                            0])
+    path_start_arc_normal = np.cross(np.array([0, 0, -1]), path_start_direction_vector)
+    path_start_arc_normal /= np.linalg.norm(path_start_arc_normal)
+
+    # direction from point (-2) to point (-1), expressed as normal of the respective arc on the sphere_trace
+    path_end_direction_vector_flat = input_path[-1] - input_path[-2]
+    path_end_direction_vector_flat /= np.linalg.norm(path_end_direction_vector_flat)
+
+    # Convert to trimesh point cloud and apply reverse rolling to origin
+    point_at_plane = trimesh.PointCloud([[path_end_direction_vector_flat[0],
+                                            path_end_direction_vector_flat[1],
+                                            -1]])
+    point_at_plane.apply_transform(rotation_to_origin(input_path.shape[0]-1, input_path))
+    path_end_direction_vector = point_at_plane.vertices[0] - sphere_trace[-1, :]
+
+    # compute the normal of that rotation arc
+    path_end_arc_normal = np.cross(sphere_trace[-1, :], path_end_direction_vector)
+    path_end_arc_normal /= np.linalg.norm(path_end_arc_normal)
+
+    # Now calculate the change of direction due to the arc connecting the trace ends
+    normal_of_arc_connecting_trace_ends = np.cross(sphere_trace[-1], sphere_trace[0])
+    normal_of_arc_connecting_trace_ends /= np.linalg.norm(normal_of_arc_connecting_trace_ends)
+
+    def get_signed_change_of_direction_at_point(first_arc_axis, second_arc_axis, central_point):
+        signed_sine = np.dot(np.cross(first_arc_axis, second_arc_axis),
+                             central_point)
+        signed_cosine = np.dot(first_arc_axis, second_arc_axis)
+        return np.arctan2(signed_sine, signed_cosine)
+
+    # change of direction computed from the flat path angles
+    net_change_of_direction = flat_path_change_of_direction
+    logging.debug(f'Flat path change of direction = {net_change_of_direction / np.pi} pi')
+
+    # change of direction from end of trace to the connecting arc
+    net_change_of_direction += get_signed_change_of_direction_at_point(path_end_arc_normal,
+                                                                       normal_of_arc_connecting_trace_ends,
+                                                                       sphere_trace[-1])
+    logging.debug(f'Net change of direction path with first angle to arc = {net_change_of_direction / np.pi} pi')
+
+    # change of direction from connecting arc to the start of trace
+    net_change_of_direction += get_signed_change_of_direction_at_point(normal_of_arc_connecting_trace_ends,
+                                                                       path_start_arc_normal,
+                                                                       sphere_trace[0])
+
+    gauss_bonnet_area = 2 * np.pi - net_change_of_direction
+    # print(angles)
+    logging.debug(f'Net change of direction = {net_change_of_direction / np.pi} pi')
+    logging.debug(f'Area = {gauss_bonnet_area / np.pi} pi')
+
+    if do_plot:
+        plot_3d_vector_with_origin(vector=path_start_direction_vector, vector_origin=np.array([0, 0, -1]), color=(0, 0, 1))
+        plot_3d_vector_with_origin(vector=path_start_arc_normal, vector_origin=np.array([0, 0, -1]), color=(0, 1, 0))
+        plot_3d_vector_with_origin(vector=path_end_direction_vector, vector_origin=sphere_trace[-1, :], color = (0, 0, 1))
+        plot_3d_vector_with_origin(vector=path_end_arc_normal, vector_origin=sphere_trace[-1, :], color=(0, 1, 0))
+        plot_3d_vector_with_origin(vector=normal_of_arc_connecting_trace_ends, vector_origin=np.array([0, 0, 0]), color=(1, 1, 0))
+        mlab.show()
+
+    if return_arc_normal:
+        return gauss_bonnet_area, normal_of_arc_connecting_trace_ends
+    else:
+        return gauss_bonnet_area
 
 def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100):
     '''This function takes into account the possibly changing rotation index of the spherical trace.'''

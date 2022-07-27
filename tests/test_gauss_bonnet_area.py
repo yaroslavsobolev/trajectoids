@@ -7,7 +7,7 @@ def add_interval(startpoint, angle, length, Ns = 10):
     ys = startpoint[1] + np.linspace(0, length * np.sin(angle), Ns)
     return np.stack((xs, ys)).T
 
-def make_zigzag(a):
+def make_zigzag(a, Ns=10):
     angles = [np.pi/4, -np.pi/4]#, -np.pi/4, np.pi/4, -np.pi/4, np.pi/4]
     # angles = [0, np.pi]
     lengths = [a, np.pi]#, np.pi/2]#, a, np.pi/2, np.pi/2]
@@ -15,19 +15,88 @@ def make_zigzag(a):
     tips = [[0, 0]]
     for i, angle in enumerate(angles):
         startpoint = input_path[-1,:]
-        new_section = add_interval(startpoint, angle, lengths[i])
+        new_section = add_interval(startpoint, angle, lengths[i], Ns=Ns)
         input_path = np.concatenate((input_path, new_section[1:]), axis=0)
         tips.append(new_section[-1])
     return input_path, np.array(tips)
 
-input_path, tips = make_zigzag(np.pi*1.0000001)
-fig = plt.figure(dpi=300)
-plt.plot(input_path[:, 0], input_path[:, 1], '-o', color='black', alpha=0.5)
-plt.plot(tips[:, 0], tips[:, 1], 'o', color='black', alpha=0.5)
-plt.axis('equal')
-plt.show()
+def test_gb_area_1():
+    input_path, tips = make_zigzag(np.pi*1.0000000001)
+    # fig = plt.figure(dpi=300)
+    # plt.plot(input_path[:, 0], input_path[:, 1], '-o', color='black', alpha=0.5)
+    # plt.plot(tips[:, 0], tips[:, 1], 'o', color='black', alpha=0.5)
+    # plt.axis('equal')
+    # plt.show()
+    area = get_gb_area(input_path)
+    assert np.isclose(area, np.pi)
 
-area = get_gb_area(input_path)
+def test_gb_area_3():
+    Ns = 10
+    input_path, tips = make_zigzag(np.pi*0.5, Ns=Ns)
+    # fig = plt.figure(dpi=300)
+    # plt.plot(input_path[:, 0], input_path[:, 1], '-o', color='black', alpha=0.5)
+    # # plt.plot(tips[:, 0], tips[:, 1], 'o', color='black', alpha=0.5)
+    # plt.axis('equal')
+    # plt.show()
+
+    area = get_gb_area(input_path, do_plot=False)
+    area2 = get_gb_area_deprecated(input_path)
+    assert np.isclose(area, area2)
+
+def test_gb_area_4():
+    def make_zigzag2(a, Ns=10):
+        angles = [np.pi / 4, -np.pi / 4, np.pi / 6]  # , -np.pi/4, np.pi/4, -np.pi/4, np.pi/4]
+        # angles = [0, np.pi]
+        lengths = [a, np.pi / 3, np.pi / 3]  # , np.pi/2]#, a, np.pi/2, np.pi/2]
+        input_path = np.array([[0, 0]])
+        tips = [[0, 0]]
+        for i, angle in enumerate(angles):
+            startpoint = input_path[-1, :]
+            new_section = add_interval(startpoint, angle, lengths[i], Ns=Ns)
+            input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+            tips.append(new_section[-1])
+        return input_path, np.array(tips)
+
+    # verify that area does not depend on oversampling/subdivision of the path
+    Ns = 20
+    input_path, tips = make_zigzag2(-np.pi/4 + 2*np.pi, Ns=Ns)
+    # fig = plt.figure(dpi=300)
+    # plt.plot(input_path[:, 0], input_path[:, 1], '-o', color='black', alpha=0.5)
+    # # plt.plot(tips[:, 0], tips[:, 1], 'o', color='black', alpha=0.5)
+    # plt.axis('equal')
+    # plt.show()
+    area = get_gb_area(input_path, do_plot=False)
+    Ns = 2
+    input_path, tips = make_zigzag2(-np.pi/4 + 2*np.pi, Ns=Ns)
+    area2 = get_gb_area(input_path, do_plot=False)
+    assert np.isclose(area, area2)
+
+def test_gb_area_5():
+    def make_zigzag2(a, Ns=10):
+        angles = [0]  # , -np.pi/4, np.pi/4, -np.pi/4, np.pi/4]
+        # angles = [0, np.pi]
+        lengths = [a]  # , np.pi/2]#, a, np.pi/2, np.pi/2]
+        input_path = np.array([[0, 0]])
+        tips = [[0, 0]]
+        for i, angle in enumerate(angles):
+            startpoint = input_path[-1, :]
+            new_section = add_interval(startpoint, angle, lengths[i], Ns=Ns)
+            input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+            tips.append(new_section[-1])
+        return input_path, np.array(tips)
+
+    # verify that area does not depend on oversampling/subdivision of the path
+    Ns = 2
+    input_path, tips = make_zigzag2(np.pi*1.1, Ns=Ns)
+    area = get_gb_area(input_path, do_plot=False)
+    assert np.isclose(area, 2*np.pi)
+
+    input_path, tips = make_zigzag2(np.pi*0.9, Ns=Ns)
+    area = get_gb_area(input_path, do_plot=False)
+    assert np.isclose(area, 0)
+
+# test_gb_area_1()
+
 # core_radius = 1
 # fig = mlab.figure(size=(1024, 768), \
 #             bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))

@@ -210,7 +210,7 @@ def make_zigzag2(a):
 
 def make_zigzag_tapered(zigzag_edge_length_without_taper=np.pi / 2,
                         zigzag_corner_angle=np.pi / 4,
-                        taper_ratio=0.3, Ns=3):
+                        taper_ratio=0.3, Ns=30):
     distance_from_taper_start_to_default_corner = taper_ratio * zigzag_edge_length_without_taper / 2
     taper_length = 2 * distance_from_taper_start_to_default_corner * np.sin(zigzag_corner_angle / 2)
     input_path = np.array([[0, 0]])
@@ -828,16 +828,28 @@ if __name__ == '__main__':
     #                           path_parameter=0.1
     #                           )
 
-    test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
-                              forced_best_scale=21.012723684811053, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-                              nframes=2000,
-                              maxscale=28,#70,
+    # test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
+    #                           forced_best_scale=21.012723684811053, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                           nframes=2000,
+    #                           maxscale=28,#70,
+    #                           figsizefactor=0.85,
+    #                           circle_center=[1.05, -0.95],
+    #                           circlealpha=1,
+    #                           plot_solution=True,
+    #                           range_for_searching_the_roots='auto',  #(10.6, 10.9),
+    #                           path_parameter=0.370
+    #                           )
+
+    test_trajectoid_existence(path_type='zigzag_tapered', path_for_figs='examples/zigzag_tapered/figures_continuity',
+                              forced_best_scale=10.615, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+                              nframes=8000,
+                              maxscale=12,#70,
                               figsizefactor=0.85,
-                              circle_center=[1.05, -0.95],
+                              circle_center=[1.2, -0.8],
                               circlealpha=1,
                               plot_solution=True,
                               range_for_searching_the_roots='auto',  #(10.6, 10.9),
-                              path_parameter=0.370
+                              path_parameter=0.2464
                               )
 
     # # Animating the path parameter sweep
@@ -914,7 +926,7 @@ if __name__ == '__main__':
     #                     plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
     #                     nframes=200, indices_to_plot = [3, 7])
 
-    animate_scale_sweep(path_type='zigzag', path_for_frames='examples/zigzag_1/figures/frames_scalesweep',
-                        npoints=700, maxscale=10, figsizefactor=0.85, circle_center=[1.3, -0.8], circlealpha=1,
-                        plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
-                        nframes=200, indices_to_plot = [7, 21], spherical_trace_upsample_factor=10)
+    # animate_scale_sweep(path_type='zigzag', path_for_frames='examples/zigzag_1/figures/frames_scalesweep',
+    #                     npoints=700, maxscale=10, figsizefactor=0.85, circle_center=[1.3, -0.8], circlealpha=1,
+    #                     plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
+    #                     nframes=200, indices_to_plot = [7, 21], spherical_trace_upsample_factor=10)
