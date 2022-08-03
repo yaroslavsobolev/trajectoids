@@ -137,6 +137,21 @@ def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
 # fig.savefig('examples/penannular_proof/areas.png', dpi=300)
 # plt.show()
 
+# Second attempt:
+plotscalefac = 0.65
+fig, ax = plt.subplots(figsize=(3.3*plotscalefac,2.5*plotscalefac))
+input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
+                                                   minscale=0.01,
+                                                   maxscale=1.16,
+                                                   nframes=30)
+plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale=True,
+              scale_to_mark=1)
+plt.ylim(-0.01, 4)
+plt.tight_layout()
+fig.savefig('examples/penannular_proof/areas-3.png', dpi=300)
+plt.show()
+
 
 input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
 # plt.plot(input_path_symm[:, 0], input_path_symm[:, 1], '--', color='C2', label='Symmetric')

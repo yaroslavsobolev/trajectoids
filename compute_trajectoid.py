@@ -15,7 +15,8 @@ from functools import lru_cache
 from tqdm import tqdm
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 
 # from great_circle_arc import intersects\
 
@@ -1156,16 +1157,12 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
     It has to be accounted for in the downstream code.'''
     sphere_trace = trace_on_sphere(input_path, kx=1, ky=1, do_plot=False)
 
-    # extend the trace by repeating its first two points again at the end
-    extended_trace = np.vstack((sphere_trace, sphere_trace[0, :], sphere_trace[1, :]))
-
     # Change of direction of the flat path:
     if flat_path_change_of_direction == 'auto':
-        signed_angles_list = [signed_angle_between_2d_vectors(input_path[i + 2] - input_path[i + 1],
+        flat_path_change_of_direction = np.sum(np.array([signed_angle_between_2d_vectors(input_path[i + 2] - input_path[i + 1],
                                                               input_path[i + 1] - input_path[i])
-                             for i in range(input_path.shape[0] - 2)
-                             ]
-        flat_path_change_of_direction = np.sum(np.array(signed_angles_list))
+                                                        for i in range(input_path.shape[0] - 2)
+                                                        ]))
 
     # Change of direction due to 2 angles formed by great arc connecting the last and first point
 
@@ -1209,8 +1206,9 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
     normal_of_arc_connecting_trace_ends /= np.linalg.norm(normal_of_arc_connecting_trace_ends)
 
     def get_signed_change_of_direction_at_point(first_arc_axis, second_arc_axis, central_point):
-        signed_sine = np.dot(np.cross(first_arc_axis, second_arc_axis),
-                             central_point)
+        unsigned_sine = np.cross(first_arc_axis, second_arc_axis)
+        signed_sine = np.linalg.norm(unsigned_sine) * np.sign(np.dot(unsigned_sine,
+                             central_point))
         signed_cosine = np.dot(first_arc_axis, second_arc_axis)
         return np.arctan2(signed_sine, signed_cosine)
 
@@ -1243,39 +1241,67 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
         mlab.show()
 
     if return_arc_normal:
-        return gauss_bonnet_area, normal_of_arc_connecting_trace_ends
+        end_to_end_distance = np.linalg.norm(sphere_trace[0]-sphere_trace[-1])
+        return gauss_bonnet_area, normal_of_arc_connecting_trace_ends, end_to_end_distance
     else:
         return gauss_bonnet_area
 
 def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100):
     '''This function takes into account the possibly changing rotation index of the spherical trace.'''
     gauss_bonnet_areas = []
+    connecting_arc_axes = []
+    end_to_end_distances = []
     sweeped_scales = np.linspace(minscale, maxscale, nframes)
+
+    flat_path_change_of_direction = np.sum(
+        np.array([signed_angle_between_2d_vectors(input_path[i + 2] - input_path[i + 1],
+                                                  input_path[i + 1] - input_path[i])
+                  for i in range(input_path.shape[0] - 2)
+                  ]))
+
     for frame_id, scale in enumerate(tqdm(sweeped_scales, desc='Computing oriented (Gauss-Bonnet) areas')):
         logging.debug(f'Computing GB_area for scale {scale}')
         input_path_scaled = input_path * scale
-        gauss_bonnet_areas.append(get_gb_area(input_path_scaled))
+        gb_area_here, arc_axis, end_to_end = get_gb_area(input_path_scaled,
+                                                         flat_path_change_of_direction,
+                                                         return_arc_normal=True)
+        gauss_bonnet_areas.append(gb_area_here)
+        connecting_arc_axes.append(arc_axis)
+        end_to_end_distances.append(end_to_end)
 
     gb_areas = np.array(gauss_bonnet_areas)
+    connecting_arc_axes = tuple(connecting_arc_axes)
     # compensation for integer number of 2*pi due to rotation index of the curve
     gb_area_zero = round(gb_areas[0]/np.pi) * np.pi
     gb_areas -= gb_area_zero
+    logging.info(f'Initial gauss-bonnet area is {gb_area_zero/np.pi} pi')
 
     # correct for changes of rotation index I upon scaling. Upon +1 or -1 change of I, the integral of geodesic curvature
     # (total change of direction) increments or decrements by 2*pi
     additional_rotation_indices = np.zeros_like(gb_areas)
     additional_rotation_index_here = 0
-    threshold_for_ind = 2*np.pi*0.75
+    threshold_for_ind = 2 * np.pi * 0.75
     for i in range(1, gb_areas.shape[0]):
         diff_here = gb_areas[i] - gb_areas[i-1]
         if np.abs(diff_here) > threshold_for_ind:
-            additional_rotation_index_here += np.round(diff_here/(2*np.pi))
+            if (np.dot(connecting_arc_axes[i], connecting_arc_axes[i - 1]) < 0) and (end_to_end_distances[i] > 1.4) and (end_to_end_distances[i-1] > 1.4):
+                # if start and end points of trace are antipodal and the arc axis has turned very much,
+                # then this change of area is real and the rotation index is unchanged
+                # By "very much" we (rather arbitrarily) mean by more than 90 degrees. Turn by more than 90 degrees is equibalent
+                #  to having a negative dot product of previous and current axis vectors
+                logging.info(f'Legitimate discontinuity of area is found at scale {sweeped_scales[i]}')
+            else:
+                additional_rotation_index_here += np.round(diff_here/(2*np.pi))
         additional_rotation_indices[i] = additional_rotation_index_here
     gb_areas -= 2 * np.pi * additional_rotation_indices
 
     # # Plot additional rotation indices for debugging
     # plt.plot(sweeped_scales, additional_rotation_indices, 'o-')
     # plt.show()
+
+    # plt.plot(sweeped_scales, connecting_arc_axes, 'o-')
+    # plt.show()
+
 
     return sweeped_scales, gb_areas
 

@@ -210,7 +210,7 @@ def make_zigzag2(a):
 
 def make_zigzag_tapered(zigzag_edge_length_without_taper=np.pi / 2,
                         zigzag_corner_angle=np.pi / 4,
-                        taper_ratio=0.3, Ns=30):
+                        taper_ratio=0.3, Ns=3):
     distance_from_taper_start_to_default_corner = taper_ratio * zigzag_edge_length_without_taper / 2
     taper_length = 2 * distance_from_taper_start_to_default_corner * np.sin(zigzag_corner_angle / 2)
     input_path = np.array([[0, 0]])
@@ -841,15 +841,15 @@ if __name__ == '__main__':
     #                           )
 
     test_trajectoid_existence(path_type='zigzag_tapered', path_for_figs='examples/zigzag_tapered/figures_continuity',
-                              forced_best_scale=10.615, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-                              nframes=8000,
-                              maxscale=12,#70,
+                              forced_best_scale=11, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+                              nframes=4000,
+                              maxscale=15,#70,
                               figsizefactor=0.85,
                               circle_center=[1.2, -0.8],
                               circlealpha=1,
                               plot_solution=True,
                               range_for_searching_the_roots='auto',  #(10.6, 10.9),
-                              path_parameter=0.2464
+                              path_parameter=0.246# 0.2464
                               )
 
     # # Animating the path parameter sweep

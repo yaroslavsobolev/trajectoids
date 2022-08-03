@@ -95,6 +95,39 @@ def test_gb_area_5():
     area = get_gb_area(input_path, do_plot=False)
     assert np.isclose(area, 0)
 
+
+def make_zigzag_tapered(zigzag_edge_length_without_taper=np.pi / 2,
+                        zigzag_corner_angle=np.pi / 4,
+                        taper_ratio=0.3, Ns=3):
+    distance_from_taper_start_to_default_corner = taper_ratio * zigzag_edge_length_without_taper / 2
+    taper_length = 2 * distance_from_taper_start_to_default_corner * np.sin(zigzag_corner_angle / 2)
+    input_path = np.array([[0, 0]])
+    angles = [0,
+              -1 * (np.pi / 2 - zigzag_corner_angle / 2),
+              0,
+              np.pi / 2 - zigzag_corner_angle / 2,
+              0]  # , -np.pi/4, np.pi/4, -np.pi/4, np.pi/4]
+    lengths = [taper_length / 2,
+               zigzag_edge_length_without_taper - 2 * distance_from_taper_start_to_default_corner,
+               taper_length,
+               zigzag_edge_length_without_taper - 2 * distance_from_taper_start_to_default_corner,
+               taper_length / 2]
+    tips = [[0, 0]]
+    for i, angle in enumerate(angles):
+        startpoint = input_path[-1, :]
+        new_section = add_interval(startpoint, angle, lengths[i], Ns=Ns)
+        input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+        tips.append(new_section[-1])
+    input_path[:, 1] = input_path[:, 1] - input_path[0, 1]
+    return input_path, np.array(tips)
+
+
+path_parameter=0.2464
+input_path, tips = make_zigzag_tapered(taper_ratio=path_parameter)
+scale = 2.6
+area = get_gb_area(scale * input_path, do_plot=True)
+
+
 # test_gb_area_1()
 
 # core_radius = 1
