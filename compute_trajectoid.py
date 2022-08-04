@@ -1305,7 +1305,7 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100):
 
     return sweeped_scales, gb_areas
 
-def length_along_the_path(input_path_0):
+def length_along_halves_of_the_path(input_path_0):
     x = input_path_0[:, 0]
     y = input_path_0[:, 1]
     length_along_the_path = np.cumsum( np.sqrt((np.diff(x)**2 + np.diff(y)**2)) )
@@ -1323,30 +1323,54 @@ def upsample_path(input_path, by_factor=10, kind='linear'):
     new_ys = interpolate.interp1d(old_indices, input_path[:, 1], kind=kind)(new_indices)
     return np.stack((new_xs, new_ys)).T
 
-def plot_flat_path_with_color(input_path, half_of_input_path, axs):
+def plot_flat_path_with_color(input_path, half_of_input_path, axs, linewidth=1, alpha=1,
+                              plot_single_period=False):
     '''plotting with color along the line'''
-    length_from_start_to_here = length_along_the_path(input_path)
-    x = input_path[:, 0]
-    y = input_path[:, 1]
-    points = np.array([x, y]).T.reshape(-1, 1, 2)
-    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    length_from_start_to_here = length_along_halves_of_the_path(input_path)
 
-    # Coloring the curve
-    norm = plt.Normalize(length_from_start_to_here.min(), length_from_start_to_here.max())
-    lc = LineCollection(segments, cmap='viridis', norm=norm)
-    lc.set_array(length_from_start_to_here)
-    lc.set_linewidth(1)
-    line = axs.add_collection(lc)
+    if not plot_single_period:
+        x = input_path[:, 0]
+        y = input_path[:, 1]
+        points = np.array([x, y]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
-    #black dots at middle and ends of the path
-    for point in [half_of_input_path[0], half_of_input_path[-1], input_path[-1]]:
-        axs.scatter(point[0], point[1], color='black', s=10)
+        # Coloring the curve
+        norm = plt.Normalize(length_from_start_to_here.min(), length_from_start_to_here.max())
+        lc = LineCollection(segments, cmap='viridis', norm=norm)
+        lc.set_array(length_from_start_to_here)
+        lc.set_linewidth(linewidth)
+        lc.set_alpha(alpha)
+        line = axs.add_collection(lc)
 
-    plt.axis('equal')
+        #black dots at middle and ends of the path
+        for point in [half_of_input_path[0], half_of_input_path[-1], input_path[-1]]:
+            axs.scatter(point[0], point[1], color='black', s=10)
+
+        plt.axis('equal')
+    else:
+        half_index = half_of_input_path.shape[0]
+        x = input_path[:half_index, 0]
+        y = input_path[:half_index, 1]
+        points = np.array([x, y]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+        # Coloring the curve
+        norm = plt.Normalize(length_from_start_to_here.min(), length_from_start_to_here.max())
+        lc = LineCollection(segments, cmap='viridis', norm=norm)
+        lc.set_array(length_from_start_to_here[:half_index])
+        lc.set_linewidth(linewidth)
+        lc.set_alpha(alpha)
+        line = axs.add_collection(lc)
+
+        # black dots at middle and ends of the path
+        for point in [half_of_input_path[0], half_of_input_path[-1]]:
+            axs.scatter(point[0], point[1], color='black', s=10)
+
+        plt.axis('equal')
 
 def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half, scale, plotting_upsample_factor=1,
                                                     sphere_opacity=.8):
-    length_from_start_to_here = length_along_the_path(input_path)
+    length_from_start_to_here = length_along_halves_of_the_path(input_path)
     sphere_trace = trace_on_sphere(upsample_path(scale * input_path,
                                                  by_factor=plotting_upsample_factor), kx=1, ky=1)
     logging.debug('Mlab plot begins...')

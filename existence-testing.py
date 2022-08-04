@@ -456,7 +456,10 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
                               path_parameter=0.1,
                               path_for_united_fig=False,
                               fig_title='Path parameter: ',
-                              trace_upsample_factor = 100
+                              trace_upsample_factor = 100,
+                              path_linewidth=1,
+                              path_alpha=1,
+                              plot_single_period=False
                               ):
     """
     Tests existence of two-period trajectoid for a given path. It will also plot the mismatch angle and the
@@ -496,7 +499,8 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
         # plot_flat_path_with_color(input_path_0, input_path_single_section, axs)
         plot_flat_path_with_color(upsample_path(input_path_0, by_factor=trace_upsample_factor),
                                   upsample_path(input_path_single_section, by_factor=trace_upsample_factor),
-                                  axs)
+                                  axs, linewidth=path_linewidth, alpha=path_alpha,
+                                  plot_single_period=plot_single_period)
         # plot circle showing relative diameter of the sphere
         if forced_best_scale:
             circle_rad = 1 / forced_best_scale
@@ -520,6 +524,8 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale, nframes=nframes)
     sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale,
                                                        nframes=nframes)
+    np.save(path_for_figs + '/sweeped_scales.npy', sweeped_scales)
+    np.save(path_for_figs + '/gb_areas.npy', gb_areas)
 
     if not forced_best_scale:
         if range_for_searching_the_roots == 'auto':
@@ -771,6 +777,21 @@ if __name__ == '__main__':
     #                           range_for_searching_the_roots=(27.0, 27.5)
     #                           )
 
+    # for main-text figure
+    test_trajectoid_existence(path_type='brownian-smooth', path_for_figs='examples/brownian_path_2/figures',
+                              forced_best_scale = 27.136794417872355,
+                              nframes=300,
+                              maxscale=28,
+                              figsizefactor=0.85,
+                              circle_center=[-1.7, -0.6],
+                              circlealpha=1,
+                              range_for_searching_the_roots=(27.0, 27.5),
+                              trace_upsample_factor=1
+                              # path_linewidth=2,
+                              # path_alpha=0.8,
+                              # plot_single_period=True
+                              )
+
     # test_trajectoid_existence(path_type='zigzag', path_for_figs='examples/zigzag_1/figures',
     #                           forced_best_scale = 4,
     #                           nframes=150,
@@ -840,17 +861,17 @@ if __name__ == '__main__':
     #                           path_parameter=0.370
     #                           )
 
-    test_trajectoid_existence(path_type='zigzag_tapered', path_for_figs='examples/zigzag_tapered/figures_continuity',
-                              forced_best_scale=11, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-                              nframes=4000,
-                              maxscale=15,#70,
-                              figsizefactor=0.85,
-                              circle_center=[1.2, -0.8],
-                              circlealpha=1,
-                              plot_solution=True,
-                              range_for_searching_the_roots='auto',  #(10.6, 10.9),
-                              path_parameter=0.246# 0.2464
-                              )
+    # test_trajectoid_existence(path_type='zigzag_tapered', path_for_figs='examples/zigzag_tapered/figures_continuity',
+    #                           forced_best_scale=11, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                           nframes=4000,
+    #                           maxscale=15,#70,
+    #                           figsizefactor=0.85,
+    #                           circle_center=[1.2, -0.8],
+    #                           circlealpha=1,
+    #                           plot_solution=True,
+    #                           range_for_searching_the_roots='auto',  #(10.6, 10.9),
+    #                           path_parameter=0.246# 0.2464
+    #                           )
 
     # # Animating the path parameter sweep
     # power_here = 3

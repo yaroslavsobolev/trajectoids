@@ -170,6 +170,8 @@ sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
                                                    minscale=0.01,
                                                    maxscale=1.16,
                                                    nframes=30)
+np.save('examples/penannular_smooth/sweeped_scales.npy', sweeped_scales)
+np.save('examples/penannular_smooth/gb_areas.npy', gb_areas)
 plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale=True,
               scale_to_mark=1)
 plt.ylim(-0.01, 4)
