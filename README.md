@@ -64,11 +64,11 @@ of performing at slope `γ = α * cos(β_max)`, assuming that α is small.
 
 If your sphere gets "stuck" at certain orientations instead of rolling down continuously, 
 your trajectoids will have the same problem too.
-If your sphere gets "stuck", typically there are two possible reasons:
+Typically, there are two possible reasons of test sphere's poor performance:
 
-* Your ball bearing is not concentric with the outer surface -- you failed to make it concentric
+* Your ball bearing is not positioned concentrically with the outer 3D printed surface.
 * Your outer surface is not spherical -- probably it's an ellipsoid instead.
 
-Make appropriate corrections to your 3D printer calibration (or to scales along X,Y,Z axes) until you succeed in making
-a sphere with satisfactory rolling performance.
+Make appropriate corrections to your 3D printer calibration (or to scales along X,Y,Z axes) until you succeed in
+manufacturing a test sphere with satisfactory rolling performance.
 
