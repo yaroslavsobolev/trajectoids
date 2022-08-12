@@ -27,8 +27,8 @@ def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
     ax.set_yticks([-2 * np.pi, -np.pi, 0, np.pi, 2 * np.pi])
     ax.set_yticklabels(['-2π', '-π', '0', 'π', '2π'])
     ax.set_ylim(-np.pi * 2 * 1.01, np.pi * 2 * 1.01)
-    ax.set_ylabel('Area $S(\sigma)$')
-    ax.set_xlabel('Path\'s scale factor $\sigma$')
+    ax.set_ylabel('Norm. spherical\n area $S(r)/r^2$')
+    ax.set_xlabel('$1/r$')
 
 # Second attempt:
 plotscalefac = 0.65
@@ -75,10 +75,11 @@ if mark_one_scale:
     value_at_scale_to_mark = interpolate.interp1d(sweeped_scales, gb_areas)(scale_to_mark)
     ax.scatter([scale_to_mark], [value_at_scale_to_mark], s=20, color='red', zorder=20)
 ax.set_yticks([-np.pi/2, 0, np.pi])
-ax.set_yticklabels(['-π/2', '0', 'π'])
+ax.set_yticklabels(['$-$π/2', '0', 'π'])
 ax.set_ylim(-np.pi/2, 1.01, np.pi * 1 * 1.3)
-ax.set_ylabel('Area $S(\sigma)$')
-ax.set_xlabel('Path\'s scale factor $\sigma$')
+ax.set_ylabel('Norm. spherical\n area $S(r)/r^2$')
+ax.set_xlabel('$1/r$')
+ax.set_xlim(-0.1, 5.6)
 
 
 plt.ylim(-np.pi/2, 4)

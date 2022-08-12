@@ -161,11 +161,19 @@ def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
 # plt.show()
 
 # Second attempt:
-plotscalefac = 0.65
-fig, ax = plt.subplots(figsize=(3.3*plotscalefac,2.5*plotscalefac))
+# plotscalefac = 0.65
+# fig, ax = plt.subplots(figsize=(3.3*plotscalefac,2.5*plotscalefac))
 input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
-# plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1], 'o-', alpha=0.5)
+# plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1])
 # plt.show()
+
+length_of_path = length_of_the_path(input_path_single_section)
+logging.info(f'Path length: {length_of_path}')
+logging.info(f'Path length over pi times scale: {length_of_path / np.pi * 1.006}')
+
+plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1], 'o-', alpha=0.5)
+plt.axis('equal')
+plt.show()
 sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
                                                    minscale=0.01,
                                                    maxscale=1.16,
@@ -327,15 +335,16 @@ def make_animation_of_rotational_symmetry():
             for x in [object1]:
                 x.remove()
 
-make_animation_of_scaling_sweep(tube_radius = 0.05, frames_folder='examples/penannular_smooth/scale-sweep-frames-1/',
-                                sphere_lines_are_thinner_by=10)
+# make_animation_of_rotational_symmetry()
+
+# make_animation_of_scaling_sweep(tube_radius = 0.05, frames_folder='examples/penannular_smooth/scale-sweep-frames-1/',
+#                                 sphere_lines_are_thinner_by=10)
 
 # sweeped_scales, mismatch_angles = mismatches_for_all_scales()
 # plt.plot(sweeped_scales, np.abs(mismatch_angles))
 # plt.show()
 
 
-# make_animation_of_rotational_symmetry()
 
 # make_orbit_animation(folder_for_frames='examples/penannular_1/orbit_frames', elevation=60)
 

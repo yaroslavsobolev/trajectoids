@@ -13,7 +13,7 @@ Clone (checkout) this repository after installing these dependencies:
 
 `scikit-image` (for loading an image as input path)
 
-## Running
+## Running the code
 
 ### Computing the trajectoid shape from a path
 Example usage with loading input path from an image:
@@ -48,3 +48,27 @@ If you use this code, please cite our paper:
 }
 ```
 -->
+
+## 3D printing
+
+Before you attempt to print trajectoids, 
+make sure that you are able to 3D print and assemble a sufficiently precise sphere of outer radius 15.875 mm 
+having a concentric spherical cavity housing a 1-inch ball bearing (25.4 mm diameter). 
+If you intend make trajectoids with a different diameter of ball bearing, or a different radius r, 
+then use your intended values for this test sphere too.
+If your test sphere does not roll satisfactorily down a 0.5-degree slope, your trajectoids will not work, either. 
+If maximum angle `β_max` between gravity projection and your trajectoid's path directions is large -- close to 90 degrees -- then
+your test sphere must perform good at even smaller slopes for your trajectoid to perform well. 
+More specifically, if you intend to run your trajectoid on a slope having angle `α`, then your test sphere must be capable 
+of performing at slope `γ = α * cos(β_max)`, assuming that α is small. 
+
+If your sphere gets "stuck" at certain orientations instead of rolling down continuously, 
+your trajectoids will have the same problem too.
+If your sphere gets "stuck", typically there are two possible reasons:
+
+* Your ball bearing is not concentric with the outer surface -- you failed to make it concentric
+* Your outer surface is not spherical -- probably it's an ellipsoid instead.
+
+Make appropriate corrections to your 3D printer calibration (or to scales along X,Y,Z axes) until you succeed in making
+a sphere with satisfactory rolling performance.
+

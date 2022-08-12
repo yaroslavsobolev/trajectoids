@@ -141,6 +141,10 @@ def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
 plotscalefac = 0.65
 fig, ax = plt.subplots(figsize=(3.3*plotscalefac,2.5*plotscalefac))
 input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+length_of_path = length_of_the_path(input_path_single_section)
+logging.info(f'Path length: {length_of_path}')
+logging.info(f'Path length over pi times scale: {length_of_path / np.pi * 1.006}')
+
 sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
                                                    minscale=0.01,
                                                    maxscale=1.16,
@@ -154,8 +158,9 @@ plt.show()
 
 
 input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
-# plt.plot(input_path_symm[:, 0], input_path_symm[:, 1], '--', color='C2', label='Symmetric')
-# plt.show()
+plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1])
+plt.axis('equal')
+plt.show()
 fig = plt.figure(11)
 _ = double_the_path(input_path_single_section, do_plot=False)
 plt.plot(_[:, 0], _[:, 1], '-', color='C0')

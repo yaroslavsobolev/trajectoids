@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from compute_trajectoid import *
@@ -493,7 +495,11 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     input_path_single_section = select_path_by_path_type(path_parameter, path_type)
     input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=False)
 
+    length_of_path = length_of_the_path(input_path_0)
+    logging.info(f'Path length: {length_of_path}')
+
     if forced_best_scale:
+        logging.info(f'Path length over pi times scale: {length_of_path/np.pi*forced_best_scale}')
         # Plot flat path with color along the path
         fig, axs = plt.subplots()
         # plot_flat_path_with_color(input_path_0, input_path_single_section, axs)
@@ -537,6 +543,8 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
         logging.info(f'Best scale: {best_scale}')
 
         forced_best_scale = best_scale
+
+    logging.info(f'Path length over pi times best scale: {length_of_path / np.pi * forced_best_scale}')
 
     if not path_for_united_fig:
         fig, axarr = plt.subplots(2, 1, sharex=True, figsize=(7 * figsizefactor, 5 * figsizefactor))
@@ -777,20 +785,20 @@ if __name__ == '__main__':
     #                           range_for_searching_the_roots=(27.0, 27.5)
     #                           )
 
-    # for main-text figure
-    test_trajectoid_existence(path_type='brownian-smooth', path_for_figs='examples/brownian_path_2/figures',
-                              forced_best_scale = 27.136794417872355,
-                              nframes=300,
-                              maxscale=28,
-                              figsizefactor=0.85,
-                              circle_center=[-1.7, -0.6],
-                              circlealpha=1,
-                              range_for_searching_the_roots=(27.0, 27.5),
-                              trace_upsample_factor=1
-                              # path_linewidth=2,
-                              # path_alpha=0.8,
-                              # plot_single_period=True
-                              )
+    # # for main-text figure
+    # test_trajectoid_existence(path_type='brownian-smooth', path_for_figs='examples/brownian_path_2/figures',
+    #                           forced_best_scale = 27.136794417872355,
+    #                           nframes=300,
+    #                           maxscale=28,
+    #                           figsizefactor=0.85,
+    #                           circle_center=[-1.7, -0.6],
+    #                           circlealpha=1,
+    #                           range_for_searching_the_roots=(27.0, 27.5),
+    #                           trace_upsample_factor=1
+    #                           # path_linewidth=2,
+    #                           # path_alpha=0.8,
+    #                           # plot_single_period=True
+    #                           )
 
     # test_trajectoid_existence(path_type='zigzag', path_for_figs='examples/zigzag_1/figures',
     #                           forced_best_scale = 4,
@@ -941,7 +949,7 @@ if __name__ == '__main__':
     #                               fig_title='Corner curvature radius: '
     #                               )
 
-    ### Scale sweep animations
+    # ## Scale sweep animations
     # animate_scale_sweep(path_type='zigzag_tapered', path_for_frames='examples/zigzag_tapered/figures/frames_scalesweep',
     #                     npoints=2000, maxscale='best', figsizefactor=0.85, circle_center=[1.3, -0.8], circlealpha=1,
     #                     plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,

@@ -1305,7 +1305,10 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100):
 
     return sweeped_scales, gb_areas
 
-def length_along_halves_of_the_path(input_path_0):
+def length_of_the_path(input_path_0):
+    return np.sum(np.sqrt((np.diff(input_path_0[:, 0])**2 + np.diff(input_path_0[:, 1])**2)))
+
+def cumsum_half_length_along_the_path(input_path_0):
     x = input_path_0[:, 0]
     y = input_path_0[:, 1]
     length_along_the_path = np.cumsum( np.sqrt((np.diff(x)**2 + np.diff(y)**2)) )
@@ -1326,7 +1329,7 @@ def upsample_path(input_path, by_factor=10, kind='linear'):
 def plot_flat_path_with_color(input_path, half_of_input_path, axs, linewidth=1, alpha=1,
                               plot_single_period=False):
     '''plotting with color along the line'''
-    length_from_start_to_here = length_along_halves_of_the_path(input_path)
+    length_from_start_to_here = cumsum_half_length_along_the_path(input_path)
 
     if not plot_single_period:
         x = input_path[:, 0]
@@ -1369,8 +1372,8 @@ def plot_flat_path_with_color(input_path, half_of_input_path, axs, linewidth=1, 
         plt.axis('equal')
 
 def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half, scale, plotting_upsample_factor=1,
-                                                    sphere_opacity=.8):
-    length_from_start_to_here = length_along_halves_of_the_path(input_path)
+                                                    sphere_opacity=.8, plot_endpoints=False, endpoint_radius=0.1):
+    length_from_start_to_here = cumsum_half_length_along_the_path(input_path)
     sphere_trace = trace_on_sphere(upsample_path(scale * input_path,
                                                  by_factor=plotting_upsample_factor), kx=1, ky=1)
     logging.debug('Mlab plot begins...')
@@ -1386,6 +1389,8 @@ def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half,
                     sphere_trace[:, 2],
                     length_from_start_to_here, colormap='viridis',
                     tube_radius=tube_radius)
+        for point_here in [sphere_trace[-1], sphere_trace[0]]:
+            mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=endpoint_radius, color=(0, 0, 0))
         return mfig
     elif USED_3D_PLOTTING_PACKAGE == 'plotly':
         fig = go.Figure(data=go.Scatter3d(
