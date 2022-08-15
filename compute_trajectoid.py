@@ -1247,7 +1247,7 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
         return gauss_bonnet_area
 
 def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, exclude_legitimate_discont=False,
-                            adaptive_sampling=False, diff_thresh=2 * np.pi * 0.1, max_number_of_subdivisions=15):
+                            adaptive_sampling=True, diff_thresh=2 * np.pi * 0.1, max_number_of_subdivisions=15):
     '''This function takes into account the possibly changing rotation index of the spherical trace.'''
     gauss_bonnet_areas = []
     connecting_arc_axes = []

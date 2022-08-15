@@ -933,41 +933,41 @@ if __name__ == '__main__':
     #                               limit_area_curve=False
     #                               )
 
-    # Animating the path parameter sweep
-    power_here = 3
-    for frame_id, path_parameter in enumerate(np.linspace((0.08)**(1/power_here), (0.6)**(1/power_here), 80)**power_here):
-        test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
-                                  forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-                                  nframes=6000,
-                                  maxscale=120,#70,
-                                  figsizefactor=0.85,
-                                  circle_center=[1.3, -0.8],
-                                  circlealpha=1,
-                                  plot_solution=True,
-                                  range_for_searching_the_roots='auto',  #(10.6, 10.9),
-                                  path_parameter=path_parameter,
-                                  path_for_united_fig=f'examples/zigzag_kinked_asymmetric/figures/frames_paramsweep/{frame_id:06d}.png',
-                                  fig_title='Asymmetry: ',
-                                  trace_upsample_factor=300,
-                                  limit_area_curve=True
-                                  )
-
     # # Animating the path parameter sweep
     # power_here = 3
-    # for frame_id, path_parameter in enumerate(np.linspace((0.03)**(1/power_here), (0.25)**(1/power_here), 80)**power_here):
-    #     test_trajectoid_existence(path_type='zigzag_smoothed', path_for_figs='examples/zigzag_smoothed/figures',
+    # for frame_id, path_parameter in enumerate(np.linspace((0.08)**(1/power_here), (0.6)**(1/power_here), 80)**power_here):
+    #     test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
     #                               forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-    #                               nframes=800,
-    #                               maxscale=45,#70,
+    #                               nframes=6000,
+    #                               maxscale=120,#70,
     #                               figsizefactor=0.85,
-    #                               circle_center=[1.202, -0.95],
+    #                               circle_center=[1.3, -0.8],
     #                               circlealpha=1,
     #                               plot_solution=True,
     #                               range_for_searching_the_roots='auto',  #(10.6, 10.9),
     #                               path_parameter=path_parameter,
-    #                               path_for_united_fig=f'examples/zigzag_smoothed/figures/frames_paramsweep/{frame_id:06d}.png',
-    #                               fig_title='Corner curvature radius: '
+    #                               path_for_united_fig=f'examples/zigzag_kinked_asymmetric/figures/frames_paramsweep/{frame_id:06d}.png',
+    #                               fig_title='Asymmetry: ',
+    #                               trace_upsample_factor=300,
+    #                               limit_area_curve=True
     #                               )
+
+    # Animating the path parameter sweep
+    power_here = 3
+    for frame_id, path_parameter in enumerate(np.linspace((0.03)**(1/power_here), (0.25)**(1/power_here), 80)**power_here):
+        test_trajectoid_existence(path_type='zigzag_smoothed', path_for_figs='examples/zigzag_smoothed/figures',
+                                  forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+                                  nframes=800,
+                                  maxscale=45,#70,
+                                  figsizefactor=0.85,
+                                  circle_center=[1.202, -0.95],
+                                  circlealpha=1,
+                                  plot_solution=True,
+                                  range_for_searching_the_roots='auto',  #(10.6, 10.9),
+                                  path_parameter=path_parameter,
+                                  path_for_united_fig=f'examples/zigzag_smoothed/figures/frames_paramsweep/{frame_id:06d}.png',
+                                  fig_title='Corner curvature radius: '
+                                  )
 
     # ## Scale sweep animations
     # animate_scale_sweep(path_type='zigzag_tapered', path_for_frames='examples/zigzag_tapered/figures/frames_scalesweep',

@@ -73,7 +73,7 @@ if do_plot:
                 bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
     tube_radius = 0.01
     plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(1, 0, 1),
                     tube_radius=tube_radius)
     l = mlab.plot3d(sphere_trace_single_section[:, 0],
                     sphere_trace_single_section[:, 1],
@@ -95,15 +95,62 @@ if do_plot:
                 bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
     tube_radius = 0.01
     plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(1, 0, 1),
                     tube_radius=tube_radius)
     l = mlab.plot3d(sphere_trace_single_section[:, 0],
                     sphere_trace_single_section[:, 1],
                     sphere_trace_single_section[:, 2], color=(0, 1, 0),
                     tube_radius=tube_radius)
+    mlab.view(elevation=60)
+    for frame_id, azimuth in enumerate(np.linspace(0, 359, 60)):
+        mlab.view(azimuth=azimuth)
+        # camera_radius = 4
+        # mfig.scene.camera.position = [camera_radius*np.cos(azimuth), camera_radius*np.sin(azimuth), -2.30]
+        # print(mfig.actors)
+        # mfig.actors.actor.rotate_y(5)
+        mlab.savefig('examples/little-prince-2/azimuth_animation/{0:08d}.png'.format(frame_id))
     mlab.show()
 
 plot_three_path_periods(input_path, plot_midpoints=True, savetofile=target_folder + '/input_path')
+
+
+
+def plot_three_path_periods_color(input_path, savetofile=False, plot_midpoints=False):
+    figtraj = plt.figure(10, figsize=(10, 5))
+    dataxlen = np.max(input_path[:, 0])
+
+    def plot_wcolor(x, y, color, alpha, linestyle, linewidth):
+        alpha=1
+        midindex = int(round(x.shape[0]/2))
+        plt.plot(x[:midindex], y[:midindex], color='limegreen', alpha=alpha, linestyle=linestyle, linewidth=linewidth)
+        plt.plot(x[midindex:], y[midindex:], color='magenta', alpha=alpha, linestyle=linestyle, linewidth=linewidth)
+
+    def plot_periods(data, linestyle, linewidth):
+        plot_wcolor(data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle, linewidth=linewidth)
+        plot_wcolor(dataxlen + data[:, 0], data[:, 1], color='black', alpha=1, linestyle=linestyle, linewidth=linewidth)
+        plot_wcolor(2 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
+                 linewidth=linewidth)
+        plot_wcolor(3 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
+                 linewidth=linewidth)
+
+    # plot_periods(data, '--', linewidth=0.5)
+    plot_periods(input_path, '-', linewidth=1)
+    # plot_periods(projection_centers, '-', linewidth=1)
+
+    for shift in dataxlen * np.arange(3):
+        plt.scatter(shift + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
+    # plt.scatter(dataxlen + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
+    if plot_midpoints:
+        midpoint_index = int(round(input_path.shape[0]/2))
+        for shift in dataxlen*np.arange(4):
+            plt.scatter(shift + input_path[midpoint_index, 0], input_path[midpoint_index, 1], s=35, facecolors='white', edgecolors='black')
+    plt.axis('equal')
+    if savetofile:
+        figtraj.savefig(f'{savetofile}.png', dpi=300)
+        figtraj.savefig(f'{savetofile}.eps')
+    plt.show()
+
+plot_three_path_periods_color(input_path, plot_midpoints=False, savetofile=target_folder + '/input_path_wcolors_orig_nopoints')
 # np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
 # np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
 
