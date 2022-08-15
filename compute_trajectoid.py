@@ -1246,7 +1246,8 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
     else:
         return gauss_bonnet_area
 
-def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100):
+def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, exclude_legitimate_discont=False,
+                            adaptive_sampling=False, diff_thresh=2 * np.pi * 0.1, max_number_of_subdivisions=15):
     '''This function takes into account the possibly changing rotation index of the spherical trace.'''
     gauss_bonnet_areas = []
     connecting_arc_axes = []
@@ -1269,6 +1270,40 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100):
         connecting_arc_axes.append(arc_axis)
         end_to_end_distances.append(end_to_end)
 
+    end_to_end_distances = np.array(end_to_end_distances)
+
+    if adaptive_sampling:
+        for subdivision_iteration in range(max_number_of_subdivisions):
+            logging.debug(f'Subvidision iteration: {subdivision_iteration}')
+            area_diff = np.diff(gauss_bonnet_areas)
+            if np.max(area_diff) < diff_thresh:
+                break
+            insert_before_indices = []
+            insert_scales = []
+            insert_areas = []
+            insert_axes = []
+            insert_ends = []
+            for i, area in enumerate(gauss_bonnet_areas[:-1]):
+                if np.abs(area_diff[i]) > diff_thresh:
+                    insert_before_indices.append(i + 1)
+                    new_scale_here = (sweeped_scales[i] + sweeped_scales[i + 1]) / 2
+                    logging.debug(f'Sampling at new scale {new_scale_here}')
+                    insert_scales.append(new_scale_here)
+                    gb_area_here, arc_axis, end_to_end = get_gb_area(input_path * new_scale_here,
+                                                                     flat_path_change_of_direction,
+                                                                     return_arc_normal=True)
+                    insert_areas.append(gb_area_here)
+                    insert_axes.append(arc_axis)
+                    insert_ends.append(end_to_end)
+
+            sweeped_scales = np.insert(sweeped_scales, insert_before_indices, insert_scales)
+            gauss_bonnet_areas = np.insert(gauss_bonnet_areas, insert_before_indices, insert_areas)
+            end_to_end_distances = np.insert(end_to_end_distances, insert_before_indices, insert_ends)
+            acc = 0
+            for i in range(len(insert_axes)):
+                connecting_arc_axes.insert(insert_before_indices[i] + acc, insert_axes[i])
+                acc += 1
+
     gb_areas = np.array(gauss_bonnet_areas)
     connecting_arc_axes = tuple(connecting_arc_axes)
     # compensation for integer number of 2*pi due to rotation index of the curve
@@ -1284,7 +1319,8 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100):
     for i in range(1, gb_areas.shape[0]):
         diff_here = gb_areas[i] - gb_areas[i-1]
         if np.abs(diff_here) > threshold_for_ind:
-            if (np.dot(connecting_arc_axes[i], connecting_arc_axes[i - 1]) < 0) and (end_to_end_distances[i] > 1.4) and (end_to_end_distances[i-1] > 1.4):
+            if exclude_legitimate_discont and \
+                    ((np.dot(connecting_arc_axes[i], connecting_arc_axes[i - 1]) < 0) and (end_to_end_distances[i] > 1.4) and (end_to_end_distances[i-1] > 1.4)):
                 # if start and end points of trace are antipodal and the arc axis has turned very much,
                 # then this change of area is real and the rotation index is unchanged
                 # By "very much" we (rather arbitrarily) mean by more than 90 degrees. Turn by more than 90 degrees is equibalent

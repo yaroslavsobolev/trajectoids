@@ -1,4 +1,5 @@
 import logging
+from bisect import bisect_left
 
 import numpy as np
 
@@ -86,9 +87,13 @@ def align_view(scene):
     scene.scene.camera.clipping_range = [3.573025799931812, 10.592960367304393]
     scene.scene.camera.compute_view_plane_normal()
 
-def mismatches_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 100, verbose=False):
+def mismatches_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes = 100, verbose=False,
+                              force_sweeped_scales=None):
     mismatch_angles = []
-    sweeped_scales = np.linspace(minscale, maxscale, nframes)
+    if force_sweeped_scales is None:
+        sweeped_scales = np.linspace(minscale, maxscale, nframes)
+    else:
+        sweeped_scales = force_sweeped_scales
     for frame_id, scale in enumerate(tqdm(sweeped_scales, desc='Computing mismatch for all scales')):
         logging.debug(f'Computing mismatch for scale {scale}')
         input_path_single_section = input_path * scale
@@ -389,14 +394,18 @@ def plot_mismatches_vs_scale(ax, input_path, sweeped_scales, mismatch_angles, ma
     ax.set_ylabel('Mismatch angle (deg.)\nbetween initial and\nfinal orientations after\npassing two periods')
 
 
-def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
+def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark, x_limit_of_curve=None):
 
     ## This code injects the sampled point at the solution_scale. Otherwise the root can be not at one of sampled points
     # ii = np.searchsorted(sweeped_scales, solution_scale)
     # sweeped_scales = np.insert(sweeped_scales, ii, solution_scale)
     # mismatch_angles = np.insert(mismatch_angles, ii, np.pi * np.sign(interp1d(sweeped_scales, gb_areas)(solution_scale)))
 
-    ax.plot(sweeped_scales, gb_areas)
+    if x_limit_of_curve is None:
+        ax.plot(sweeped_scales, gb_areas)
+    else:
+        last_index = bisect_left(sweeped_scales, x_limit_of_curve)
+        ax.plot(sweeped_scales[:last_index], gb_areas[:last_index])
     ax.axhline(y=np.pi, color='black', alpha=0.5)
     ax.axhline(y=0, color='black', alpha=0.3)
     ax.axhline(y=-1 * np.pi, color='black', alpha=0.5)
@@ -461,7 +470,8 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
                               trace_upsample_factor = 100,
                               path_linewidth=1,
                               path_alpha=1,
-                              plot_single_period=False
+                              plot_single_period=False,
+                              limit_area_curve=True,
                               ):
     """
     Tests existence of two-period trajectoid for a given path. It will also plot the mismatch angle and the
@@ -527,10 +537,12 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
                                                         forced_best_scale)
         mlab.show()
 
-    sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale, nframes=nframes)
     sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale,
-                                                       nframes=nframes)
+                                                       nframes=nframes, adaptive_sampling=True)
+    sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale,
+                                                                nframes=nframes, force_sweeped_scales=sweeped_scales)
     np.save(path_for_figs + '/sweeped_scales.npy', sweeped_scales)
+    # np.save(path_for_figs + '/sweeped_scales_gb.npy', sweeped_scales_gb)
     np.save(path_for_figs + '/gb_areas.npy', gb_areas)
 
     if not forced_best_scale:
@@ -587,8 +599,12 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
         plot_mismatches_vs_scale(ax_angle, input_path_0, sweeped_scales, mismatch_angles,
                                  mark_one_scale=plot_solution,
                                  scale_to_mark=best_scale)
-        plot_gb_areas(ax_area, sweeped_scales, gb_areas, mark_one_scale=plot_solution,
-                      scale_to_mark=best_scale)
+        if limit_area_curve:
+            plot_gb_areas(ax_area, sweeped_scales, gb_areas, mark_one_scale=plot_solution,
+                          scale_to_mark=best_scale, x_limit_of_curve=best_scale + 1)
+        else:
+            plot_gb_areas(ax_area, sweeped_scales, gb_areas, mark_one_scale=plot_solution,
+                          scale_to_mark=best_scale)
         for ax in [ax_angle, ax_area]:
             ax.set_aspect('auto')
             ax.set_xlim(-1, maxscale)
@@ -644,9 +660,11 @@ def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian
     input_path_single_section = select_path_by_path_type(path_parameter, path_type)
     input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=False)
 
-    sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale, nframes=npoints)
     sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale,
-                                                       nframes=npoints)
+                                                       nframes=npoints, adaptive_sampling=True)
+    sweeped_scales, mismatch_angles = mismatches_for_all_scales(input_path_0, minscale=minscale, maxscale=maxscale,
+                                                                nframes=npoints,
+                                                                force_sweeped_scales=sweeped_scales)
 
     if maxscale == 'best':
         if range_for_searching_the_roots == 'auto':
@@ -911,26 +929,28 @@ if __name__ == '__main__':
     #                               range_for_searching_the_roots=(1, 1.1),
     #                               path_parameter=path_parameter,
     #                               path_for_united_fig=f'examples/zigzag_kinked/figures/frames_paramsweep/{frame_id:06d}.png',
-    #                               fig_title='Declination of first kink arm, rad: '
+    #                               fig_title='Declination of first kink arm, rad: ',
+    #                               limit_area_curve=False
     #                               )
 
-    # # Animating the path parameter sweep
-    # power_here = 3
-    # for frame_id, path_parameter in enumerate(np.linspace((0.08)**(1/power_here), (0.6)**(1/power_here), 80)**power_here):
-    #     test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
-    #                               forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-    #                               nframes=6000,
-    #                               maxscale=120,#70,
-    #                               figsizefactor=0.85,
-    #                               circle_center=[1.3, -0.8],
-    #                               circlealpha=1,
-    #                               plot_solution=True,
-    #                               range_for_searching_the_roots='auto',  #(10.6, 10.9),
-    #                               path_parameter=path_parameter,
-    #                               path_for_united_fig=f'examples/zigzag_kinked_asymmetric/figures/frames_paramsweep/{frame_id:06d}.png',
-    #                               fig_title='Asymmetry: ',
-    #                               trace_upsample_factor=300
-    #                               )
+    # Animating the path parameter sweep
+    power_here = 3
+    for frame_id, path_parameter in enumerate(np.linspace((0.08)**(1/power_here), (0.6)**(1/power_here), 80)**power_here):
+        test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
+                                  forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+                                  nframes=6000,
+                                  maxscale=120,#70,
+                                  figsizefactor=0.85,
+                                  circle_center=[1.3, -0.8],
+                                  circlealpha=1,
+                                  plot_solution=True,
+                                  range_for_searching_the_roots='auto',  #(10.6, 10.9),
+                                  path_parameter=path_parameter,
+                                  path_for_united_fig=f'examples/zigzag_kinked_asymmetric/figures/frames_paramsweep/{frame_id:06d}.png',
+                                  fig_title='Asymmetry: ',
+                                  trace_upsample_factor=300,
+                                  limit_area_curve=True
+                                  )
 
     # # Animating the path parameter sweep
     # power_here = 3
