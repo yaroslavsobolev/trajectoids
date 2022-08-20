@@ -1371,6 +1371,15 @@ def cumsum_half_length_along_the_path(input_path_0):
     length_along_the_path /= np.max(length_along_the_path)
     return length_along_the_path
 
+def cumsum_full_length_along_the_path(input_path_0):
+    x = input_path_0[:, 0]
+    y = input_path_0[:, 1]
+    length_along_the_path = np.cumsum( np.sqrt((np.diff(x)**2 + np.diff(y)**2)) )
+    length_along_the_path = np.insert(length_along_the_path, 0, 0)
+    length_along_the_path = np.remainder(length_along_the_path, np.max(length_along_the_path))
+    length_along_the_path /= np.max(length_along_the_path)
+    return length_along_the_path
+
 def upsample_path(input_path, by_factor=10, kind='linear'):
     old_indices = np.arange(input_path.shape[0])
     max_index = input_path.shape[0]-1
