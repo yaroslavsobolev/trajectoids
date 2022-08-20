@@ -1095,6 +1095,17 @@ def double_the_path(input_path_0, do_plot=False, do_sort=True):
 
     return sort_path(input_path_0)
 
+def multiply_the_path(input_path_0, m, do_plot=False, do_sort=True):
+    input_path_to_append = np.copy(input_path_0)
+    multiplied_path = np.copy(input_path_0)
+    for i in range(m-1):
+        input_path_to_append[:, 0] = (i + 1) * input_path_0[-1, 0] + input_path_0[:, 0]
+        # input_path_to_append[:,1] = -1*input_path_to_append[:,1]
+        multiplied_path = np.concatenate((multiplied_path, sort_path(input_path_to_append)[1:, ]), axis=0)
+    if do_sort:
+        multiplied_path = sort_path(multiplied_path)
+    return sort_path(multiplied_path)
+
 ## This old implementation is wrong by a integer number of 2*pi
 def get_gb_area_deprecated(input_path):
     '''This function does not take into account the possibly changing rotation index of the spherical trace.
@@ -1289,20 +1300,26 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, 
                     new_scale_here = (sweeped_scales[i] + sweeped_scales[i + 1]) / 2
                     logging.debug(f'Sampling at new scale {new_scale_here}')
                     insert_scales.append(new_scale_here)
-                    gb_area_here, arc_axis, end_to_end = get_gb_area(input_path * new_scale_here,
-                                                                     flat_path_change_of_direction,
-                                                                     return_arc_normal=True)
+                    if not exclude_legitimate_discont:
+                        gb_area_here, arc_axis, end_to_end = get_gb_area(input_path * new_scale_here,
+                                                                         flat_path_change_of_direction,
+                                                                         return_arc_normal=True)
+                    else:
+                        gb_area_here = get_gb_area(input_path * new_scale_here,
+                                                                         flat_path_change_of_direction,
+                                                                         return_arc_normal=False)
                     insert_areas.append(gb_area_here)
                     insert_axes.append(arc_axis)
                     insert_ends.append(end_to_end)
 
             sweeped_scales = np.insert(sweeped_scales, insert_before_indices, insert_scales)
             gauss_bonnet_areas = np.insert(gauss_bonnet_areas, insert_before_indices, insert_areas)
-            end_to_end_distances = np.insert(end_to_end_distances, insert_before_indices, insert_ends)
-            acc = 0
-            for i in range(len(insert_axes)):
-                connecting_arc_axes.insert(insert_before_indices[i] + acc, insert_axes[i])
-                acc += 1
+            if not exclude_legitimate_discont:
+                end_to_end_distances = np.insert(end_to_end_distances, insert_before_indices, insert_ends)
+                acc = 0
+                for i in range(len(insert_axes)):
+                    connecting_arc_axes.insert(insert_before_indices[i] + acc, insert_axes[i])
+                    acc += 1
 
     gb_areas = np.array(gauss_bonnet_areas)
     connecting_arc_axes = tuple(connecting_arc_axes)
@@ -1342,6 +1359,7 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, 
     return sweeped_scales, gb_areas
 
 def length_of_the_path(input_path_0):
+    ''''''
     return np.sum(np.sqrt((np.diff(input_path_0[:, 0])**2 + np.diff(input_path_0[:, 1])**2)))
 
 def cumsum_half_length_along_the_path(input_path_0):

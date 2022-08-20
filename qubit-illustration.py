@@ -72,7 +72,7 @@ def draw_pulse(S, frame_id, scale_type='time'):
 
     fig, axarr = plt.subplots(2, 1, gridspec_kw={'height_ratios': [2, 1]}, sharex=True, figsize=(6,6))
     ax = axarr[0]
-    ax.set_title(f'Scale factor: {S:.3f}')
+    ax.set_title(f'Scale factor (1/r): {S:.3f}')
     ax.plot(ts, signal, label='Field strength')
     ax.plot(ts, E(ts), color='C2', label='Pulse envelope $E(t)$')
     ax.set_ylabel('Field strength, a.u.')
@@ -82,8 +82,8 @@ def draw_pulse(S, frame_id, scale_type='time'):
 
     ax = axarr[1]
     ax.plot(ts, phaseshift(ts), color='C1', linewidth=2)
-    ax.set_xlabel('Time, s')
-    ax.set_ylabel('Phase shift, rad')
+    ax.set_xlabel('Time $t$, s')
+    ax.set_ylabel('Phase shift $\psi(t)$, rad')
     ax.set_ylim(0, 33)
 
     fig.savefig(f'tests/qubits/figures/frames_{scale_type}/{frame_id:08d}.png', dpi=300)
@@ -93,7 +93,11 @@ def draw_pulse(S, frame_id, scale_type='time'):
 
 # def delta(t):
 #     return 600*t**2
+# for frame, S in enumerate(np.linspace(1,1.5, 100)):
+#     print(f'Rendering frame {frame}')
+#     draw_pulse(S, frame, scale_type='time')
+
 for frame, S in enumerate(np.linspace(1,1.5, 100)):
     print(f'Rendering frame {frame}')
-    draw_pulse(S, frame, scale_type='time')
+    draw_pulse(S, frame, scale_type='value')
 

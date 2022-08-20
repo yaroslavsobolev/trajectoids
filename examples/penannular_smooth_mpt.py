@@ -4,6 +4,8 @@ import mayavi
 
 from compute_trajectoid import *
 
+m_periods = 5
+
 def make_path_nonuniform(xlen, r, Npath = 400):
     # factor = 0.2
     xs = np.linspace(0, xlen, Npath)
@@ -19,7 +21,7 @@ def make_path_nonuniform(xlen, r, Npath = 400):
     input_path = np.stack((xs, ys)).T
     return input_path
 
-def make_path(xlen, r, shift=0.25, Npath = 400, do_double=True,
+def make_path(xlen, r, shift=0.25, Npath = 400, do_multiply=True,
               alpha=0.15):
     ## First smooth angle section
     R = r * (np.sin(alpha) / (1 - np.sin(alpha)))
@@ -64,8 +66,8 @@ def make_path(xlen, r, shift=0.25, Npath = 400, do_double=True,
 
     input_path = np.stack((overall_xs, overall_ys)).T
 
-    if do_double:
-        input_path = double_the_path(input_path)
+    if do_multiply:
+        input_path = multiply_the_path(input_path, m=m_periods)
 
     return input_path
 
@@ -133,7 +135,7 @@ def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
 # # First attempt:
 # plotscalefac = 0.8
 # fig, ax = plt.subplots(figsize=(5*plotscalefac,2*plotscalefac))
-# input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+# input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False)
 # sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
 #                                                    minscale=0.01,
 #                                                    maxscale=1.16,
@@ -148,7 +150,7 @@ def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
 # # Second attempt:
 # plotscalefac = 0.65
 # fig, ax = plt.subplots(figsize=(4.3*plotscalefac,2.5*plotscalefac))
-# input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+# input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False)
 # sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
 #                                                    minscale=0.01,
 #                                                    maxscale=1.16,
@@ -163,9 +165,9 @@ def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark):
 # Second attempt:
 plotscalefac = 0.65
 fig, ax = plt.subplots(figsize=(3.3*plotscalefac,2.5*plotscalefac))
-input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False)
 length_of_path = length_of_the_path(input_path_single_section)
-np.save('examples/penannular_smooth/length_of_path.npy', length_of_path)
+np.save('examples/penannular_smooth_mpt/length_of_path.npy', length_of_path)
 # plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1])
 # plt.show()
 
@@ -176,68 +178,110 @@ logging.info(f'Path length over pi times scale: {length_of_path / np.pi * 1.006}
 # plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1], 'o-', alpha=0.5)
 # plt.axis('equal')
 # plt.show()
-sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
-                                                   minscale=0.01,
-                                                   maxscale=1.16,
-                                                   nframes=30)
-np.save('examples/penannular_smooth/sweeped_scales.npy', sweeped_scales)
-np.save('examples/penannular_smooth/gb_areas.npy', gb_areas)
-plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale=True,
-              scale_to_mark=1)
-plt.ylim(-0.01, 4)
-plt.tight_layout()
-fig.savefig('examples/penannular_smooth/areas-3.png', dpi=300)
-plt.show()
+
+# sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section,
+#                                                    minscale=0.01,
+#                                                    maxscale=1.16,
+#                                                    nframes=30)
+# np.save('examples/penannular_smooth_mpt/sweeped_scales.npy', sweeped_scales)
+# np.save('examples/penannular_smooth_mpt/gb_areas.npy', gb_areas)
+# plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale=True,
+#               scale_to_mark=1)
+# plt.ylim(-0.01, 4)
+# plt.tight_layout()
+# fig.savefig('examples/penannular_smooth_mpt/areas-3.png', dpi=300)
+# plt.show()
 
 
-input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False)
+input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False)
 
 # plt.plot(input_path_symm[:, 0], input_path_symm[:, 1], '--', color='C2', label='Symmetric')
 # plt.show()
-fig = plt.figure(11)
-_ = double_the_path(input_path_single_section, do_plot=False)
-plt.plot(_[:, 0], _[:, 1], '-', color='C0')
-plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1], '-', color='C2')  # , label='Asymmetric')
-plt.axis('equal')
-plt.scatter(input_path_single_section[0, 0], input_path_single_section[0, 1], color='black', zorder=100)
-plt.scatter(input_path_single_section[-1, 0], input_path_single_section[-1, 1], color='black', zorder=100)
-plt.plot([0, input_path_single_section[-1, 0]], [0, 0], '--', color='grey', linewidth=0.8, zorder=-100)
-fig.savefig('examples/penannular_smooth/path_plot.png', dpi=300)
-plt.plot()
+# fig = plt.figure(11)
+# _ = double_the_path(input_path_single_section, do_plot=False)
+# plt.plot(_[:, 0], _[:, 1], '-', color='C0')
+# plt.plot(input_path_single_section[:, 0], input_path_single_section[:, 1], '-', color='C2')  # , label='Asymmetric')
+# plt.axis('equal')
+# plt.scatter(input_path_single_section[0, 0], input_path_single_section[0, 1], color='black', zorder=100)
+# plt.scatter(input_path_single_section[-1, 0], input_path_single_section[-1, 1], color='black', zorder=100)
+# plt.plot([0, input_path_single_section[-1, 0]], [0, 0], '--', color='grey', linewidth=0.8, zorder=-100)
+# fig.savefig('examples/penannular_smooth_mpt/path_plot.png', dpi=300)
+# # plt.plot()
 
-plt.show()
+# plt.show()
 tube_radius = 0.01
 core_radius = 1
 
-# best_scale = minimize_mismatch_by_scaling(input_path, scale_range=(0.9, 1.1))
-best_scale = 1.006534368463883
-input_path = make_path(xlen=3.81, r=1.23, Npath=150) * best_scale
-input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * best_scale
+input_path_0 = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=True)
+# sphere_trace_0 = trace_on_sphere(input_path_0 * 0.33, kx=1, ky=1, do_plot=True)
+
+# best_scale = minimize_mismatch_by_scaling(input_path_0, scale_range=(0.33, 0.38))
+# print(best_scale)
+
+## For m = 3
+# best_scale = 0.5773119988978546
+
+## For m = 5
+best_scale = 0.33483563437221764
+
+input_path = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=True) * best_scale
+input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False) * best_scale
 sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
 sphere_trace_single_section = trace_on_sphere(input_path_single_section, kx=1, ky=1)
 mfig = mlab.figure(size=(1024, 768), \
             bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
 
 plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-last_index = sphere_trace.shape[0] // 2
-l = mlab.plot3d(sphere_trace[last_index:, 0], sphere_trace[last_index:, 1], sphere_trace[last_index:, 2], color=(0, 0, 1),
-                tube_radius=tube_radius)
-l = mlab.plot3d(sphere_trace_single_section[:, 0],
-                sphere_trace_single_section[:, 1],
-                sphere_trace_single_section[:, 2], color=(0, 1, 0),
-                tube_radius=tube_radius)
+# colors = [(0, 0, 1), (1, 1, 0), (0, 1, 0)]
+colors = [(0, 0, 1), (1, 1, 0), (1, 0, 1), (0, 1, 1), (0, 1, 0)]
+indices_for_splitting = np.round(np.linspace(0, sphere_trace.shape[0], m_periods + 1)).astype(int)
+
+# petals = np.split(sphere_trace, m_periods, axis=0)
+start_points = []
+for k in range(m_periods):
+    petal = sphere_trace[indices_for_splitting[k]:indices_for_splitting[k+1], :]
+    l = mlab.plot3d(petal[:, 0], petal[:, 1], petal[:, 2], color=colors[k],
+                    tube_radius=tube_radius)
+    start_points.append(petal[0, :])
+# l = mlab.plot3d(sphere_trace_single_section[:, 0],
+#                 sphere_trace_single_section[:, 1],
+#                 sphere_trace_single_section[:, 2], color=(0, 1, 0),
+#                 tube_radius=tube_radius)
+
+for point_here in start_points:
+    mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(0, 0, 0))
+
+# Find lambda apex
+start_points = np.array(start_points)
+apex_point = np.mean(start_points, axis=0)
+apex_point = apex_point / np.linalg.norm(apex_point)
+
+for point_here in [apex_point]:
+    mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(0, 0, 0))
+
+for point_here in [[0, 0, 0]]:
+    mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(0, 0, 0))
+
+for k, start_point in enumerate(start_points):
+    arc_here = bridge_two_points_by_arc(start_point, apex_point,
+                                        npoints=30)
+    mlab.plot3d(arc_here[:, 0],
+                          arc_here[:, 1],
+                          arc_here[:, 2], color=(1, 0, 0) if (k==0 or k==m_periods-1) else (1, 0.7, 0.7),
+                          tube_radius=tube_radius, opacity=1 if (k==0 or k==m_periods-1) else 0.5)
+
 align_view(mfig)
 # mlab.savefig('examples/penannular_smooth/full_trace.png')
 mlab.show()
 
 def make_animation_of_scaling_sweep(tube_radius = 0.01,
-                                    frames_folder='examples/penannular_smooth/scale-sweep-frames/',
+                                    frames_folder='examples/penannular_smooth_mpt/scale-sweep-frames/',
                                     sphere_lines_are_thinner_by=4):
     core_radius = 1
 
     best_scale = 1.006534368463883
     input_path = make_path(xlen=3.81, r=1.23, Npath=150) * best_scale
-    input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * best_scale
+    input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False) * best_scale
 
     mfig = mlab.figure(size=(1024, 768), \
                 bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
@@ -247,7 +291,7 @@ def make_animation_of_scaling_sweep(tube_radius = 0.01,
     mismatch_angles = []
     for frame_id, scale in enumerate(np.linspace(0.1*best_scale, best_scale, nframes)):
         print(f'Frame: {frame_id}, scale: {scale}')
-        input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * scale
+        input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False) * scale
         sphere_trace_single_section = trace_on_sphere(input_path_single_section, kx=1, ky=1)
         mismatch_angles.append(mismatch_angle_for_path(input_path_single_section))
         object1 = mlab.plot3d(sphere_trace_single_section[:, 0],
@@ -275,14 +319,14 @@ def mismatches_for_all_scales():
 
     best_scale = 1.006534368463883
     input_path = make_path(xlen=3.81, r=1.23, Npath=150) * best_scale
-    input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * best_scale
+    input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False) * best_scale
 
     nframes = 100
     mismatch_angles = []
     sweeped_scales = np.linspace(0.1 * best_scale, best_scale, nframes)
     for frame_id, scale in enumerate(sweeped_scales):
         print(scale)
-        input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * scale
+        input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False) * scale
         mismatch_angles.append(mismatch_angle_for_path(input_path_single_section))
     return sweeped_scales, np.array(mismatch_angles)
 
@@ -292,7 +336,7 @@ def make_animation_of_rotational_symmetry():
 
     best_scale = 1.006534368463883
     input_path = make_path(xlen=3.81, r=1.23, Npath=150) * best_scale
-    input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_double=False) * best_scale
+    input_path_single_section = make_path(xlen=3.81, r=1.23, Npath=150, do_multiply=False) * best_scale
 
     # ====== Make animation of the initial scaling sweep
     mfig = mlab.figure(size=(1024, 768), \
@@ -333,7 +377,7 @@ def make_animation_of_rotational_symmetry():
                               trace_copy[:, 1],
                               trace_copy[:, 2], color=(0, 0, 1),
                               tube_radius=tube_radius)
-        mlab.savefig('examples/penannular_smooth/symmetry_rotation_frames/{0:08d}.png'.format(frame_id))
+        mlab.savefig('examples/penannular_smooth_mpt/symmetry_rotation_frames/{0:08d}.png'.format(frame_id))
         if frame_id > 0:
             for x in [object1]:
                 x.remove()
@@ -341,7 +385,7 @@ def make_animation_of_rotational_symmetry():
 # make_animation_of_rotational_symmetry()
 
 
-make_animation_of_scaling_sweep(frames_folder='examples/penannular_smooth/scale-sweep-frames/')
+# make_animation_of_scaling_sweep(frames_folder='examples/penannular_smooth_mpt/scale-sweep-frames/')
 
 # make_animation_of_scaling_sweep(tube_radius = 0.05, frames_folder='examples/penannular_smooth/scale-sweep-frames-1/',
 #                                 sphere_lines_are_thinner_by=10)

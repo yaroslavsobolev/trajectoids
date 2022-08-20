@@ -124,7 +124,7 @@ def make_archimedes_spiral(turns, rate_parameter, npoints, noise_amplitude, end_
     ys = ys - ys[0]
     if end_with_zero:
         ys = ys - xs*(ys[-1] - ys[0])/(xs[-1] - xs[0])
-    plt.plot(xs, ys)
+    # plt.plot(xs, ys)
     return np.stack((xs, ys)).T
 
 def make_narrow(npoints, shift=0.05, noise_amplitude=0, end_with_zero=True, seed=0, upsample_by=3):
@@ -375,49 +375,50 @@ def make_zigzag_with_smoothed_corner(zigzag_edge_length_without_smoothing=np.pi 
 #     ys = input_path[:, 1]
 #     return input_path, np.array(tips)
 
-def plot_mismatches_vs_scale(ax, input_path, sweeped_scales, mismatch_angles, mark_one_scale, scale_to_mark):
+def plot_mismatches_vs_scale(ax, input_path, sweeped_scales, mismatch_angles, mark_one_scale, scale_to_mark, length_of_path):
     ## This code injects the sampled point at the solution_scale. Otherwise the root can be not at one of sampled points
+    xfactor = length_of_path / (2 * np.pi)
     if mark_one_scale:
         ii = np.searchsorted(sweeped_scales, scale_to_mark)
         sweeped_scales = np.insert(sweeped_scales, ii, scale_to_mark)
         # value_at_scale = 0
         value_at_scale_to_mark = mismatch_angle_for_path(input_path * scale_to_mark, recursive=False, use_cache=False)
         mismatch_angles = np.insert(mismatch_angles, ii, value_at_scale_to_mark)
-    ax.plot(sweeped_scales, np.abs(mismatch_angles)/np.pi*180)
+    ax.plot(sweeped_scales * xfactor, np.abs(mismatch_angles)/np.pi*180)
     # ax.plot(sweeped_scales, mismatch_angles / np.pi * 180)
     ax.axhline(y=0, color='black')
     if mark_one_scale:
         value_at_scale_to_mark = interp1d(sweeped_scales, mismatch_angles)(scale_to_mark)
-        ax.scatter([scale_to_mark], [180/np.pi*np.abs(value_at_scale_to_mark)], s=20, color='red')
+        ax.scatter([scale_to_mark * xfactor], [180/np.pi*np.abs(value_at_scale_to_mark)], s=20, color='red')
     ax.set_yticks(np.arange(0, 181, 20))
     ax.set_ylim(-5, 181)
     ax.set_ylabel('Mismatch angle (deg.)\nbetween initial and\nfinal orientations after\npassing two periods')
 
 
-def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark, x_limit_of_curve=None):
+def plot_gb_areas(ax, sweeped_scales, gb_areas, mark_one_scale, scale_to_mark, length_of_path, x_limit_of_curve=None):
 
     ## This code injects the sampled point at the solution_scale. Otherwise the root can be not at one of sampled points
     # ii = np.searchsorted(sweeped_scales, solution_scale)
     # sweeped_scales = np.insert(sweeped_scales, ii, solution_scale)
     # mismatch_angles = np.insert(mismatch_angles, ii, np.pi * np.sign(interp1d(sweeped_scales, gb_areas)(solution_scale)))
-
+    xfactor = length_of_path/(2*np.pi)
     if x_limit_of_curve is None:
-        ax.plot(sweeped_scales, gb_areas)
+        ax.plot(sweeped_scales * xfactor, gb_areas)
     else:
         last_index = bisect_left(sweeped_scales, x_limit_of_curve)
-        ax.plot(sweeped_scales[:last_index], gb_areas[:last_index])
+        ax.plot(sweeped_scales[:last_index] * xfactor, gb_areas[:last_index])
     ax.axhline(y=np.pi, color='black', alpha=0.5)
     ax.axhline(y=0, color='black', alpha=0.3)
     ax.axhline(y=-1 * np.pi, color='black', alpha=0.5)
     if mark_one_scale:
         # ax.scatter([solution_scale], [np.pi * np.sign(interp1d(sweeped_scales, gb_areas)(solution_scale))], s=20, color='red')
         value_at_scale_to_mark = interp1d(sweeped_scales, gb_areas)(scale_to_mark)
-        ax.scatter([scale_to_mark], [value_at_scale_to_mark], s=20, color='red')
+        ax.scatter([scale_to_mark * xfactor], [value_at_scale_to_mark], s=20, color='red')
     ax.set_yticks([-2 * np.pi, -np.pi, 0, np.pi, 2 * np.pi])
     ax.set_yticklabels(['-2π', '-π', '0', 'π', '2π'])
     ax.set_ylim(-np.pi * 2 * 1.01, np.pi * 2 * 1.01)
-    ax.set_ylabel('Spherical area $S(\sigma)$\n enclosed by the \nfirst period\'s trace')
-    ax.set_xlabel('Path\'s scale factor $\sigma$ for fixed ball radius $r=1$\n(or $1/r$ for fixed $\sigma=1$)')
+    ax.set_ylabel('Norm. spherical\narea $S(r)/r^2$')
+    ax.set_xlabel('Path\'s scale $\sigma = L/(2 \pi r)$')
 
 
 def select_path_by_path_type(path_parameter, path_type):
@@ -505,13 +506,15 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
     input_path_single_section = select_path_by_path_type(path_parameter, path_type)
     input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=False)
 
-    length_of_path = length_of_the_path(input_path_0)
+    length_of_path = length_of_the_path(input_path_single_section)
+    xfactor = length_of_path / (2 * np.pi)
+    np.save(path_for_figs + '/length_of_path.npy', length_of_path)
     logging.info(f'Path length: {length_of_path}')
 
     if forced_best_scale:
-        logging.info(f'Path length over pi times scale: {length_of_path/np.pi*forced_best_scale}')
+        logging.info(f'Path length over 2pi times scale: {length_of_path/ (2 * np.pi)*forced_best_scale}')
         # Plot flat path with color along the path
-        fig, axs = plt.subplots()
+        fig, axs = plt.subplots(figsize=(8,8))
         # plot_flat_path_with_color(input_path_0, input_path_single_section, axs)
         plot_flat_path_with_color(upsample_path(input_path_0, by_factor=trace_upsample_factor),
                                   upsample_path(input_path_single_section, by_factor=trace_upsample_factor),
@@ -556,15 +559,16 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
 
         forced_best_scale = best_scale
 
-    logging.info(f'Path length over pi times best scale: {length_of_path / np.pi * forced_best_scale}')
+    logging.info(f'Path length over 2pi times best scale: {length_of_path / (2 * np.pi) * forced_best_scale}')
 
     if not path_for_united_fig:
         fig, axarr = plt.subplots(2, 1, sharex=True, figsize=(7 * figsizefactor, 5 * figsizefactor))
         plot_mismatches_vs_scale(axarr[0], input_path_0, sweeped_scales, mismatch_angles,
                                  mark_one_scale=plot_solution,
-                                 scale_to_mark=forced_best_scale)
+                                 scale_to_mark=forced_best_scale,
+                                 length_of_path=length_of_path)
         plot_gb_areas(axarr[1], sweeped_scales, gb_areas, mark_one_scale=plot_solution,
-                      scale_to_mark=forced_best_scale)
+                      scale_to_mark=forced_best_scale, length_of_path=length_of_path)
         plt.tight_layout()
         fig.savefig(path_for_figs + '/angle-vs-scale.png', dpi=300)
         plt.show()
@@ -598,16 +602,18 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
 
         plot_mismatches_vs_scale(ax_angle, input_path_0, sweeped_scales, mismatch_angles,
                                  mark_one_scale=plot_solution,
-                                 scale_to_mark=best_scale)
+                                 scale_to_mark=best_scale,
+                                 length_of_path=length_of_path)
         if limit_area_curve:
             plot_gb_areas(ax_area, sweeped_scales, gb_areas, mark_one_scale=plot_solution,
-                          scale_to_mark=best_scale, x_limit_of_curve=best_scale + 1)
+                          scale_to_mark=best_scale, x_limit_of_curve=best_scale + 1,
+                          length_of_path=length_of_path)
         else:
             plot_gb_areas(ax_area, sweeped_scales, gb_areas, mark_one_scale=plot_solution,
-                          scale_to_mark=best_scale)
+                          scale_to_mark=best_scale, length_of_path=length_of_path)
         for ax in [ax_angle, ax_area]:
             ax.set_aspect('auto')
-            ax.set_xlim(-1, maxscale)
+            ax.set_xlim(-1 * xfactor, maxscale * xfactor)
 
         # Plot the 3D and show it in the matplotlib subplot
         mlab.options.offscreen = True
@@ -626,6 +632,7 @@ def test_trajectoid_existence(path_type='brownian', path_for_figs='examples/brow
 
         fig.savefig(path_for_united_fig, dpi=300)
         # plt.show()
+    plt.close('all')
 
 def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian_path_1/figures/frames_scalesweep',
                         npoints=300, minscale=0.01, maxscale=26, circle_center=[0, 0],
@@ -659,6 +666,9 @@ def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian
     # input_path_single_section = make_random_path(seed=1, amplitude=3, make_ends_horizontal='both', end_with_zero=True)
     input_path_single_section = select_path_by_path_type(path_parameter, path_type)
     input_path_0 = double_the_path_nosort(input_path_single_section, do_plot=False)
+    length_of_path = length_of_the_path(input_path_single_section)
+    logging.info(f'Path length over 2 pi: {length_of_path / (np.pi * 2)}')
+    xfactor = length_of_path / (2 * np.pi)
 
     sweeped_scales, gb_areas = gb_areas_for_all_scales(input_path_single_section, minscale=minscale, maxscale=maxscale,
                                                        nframes=npoints, adaptive_sampling=True)
@@ -679,11 +689,11 @@ def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian
     list_of_scales_to_plot = np.linspace(0.01, maxscale, nframes)
     t0 = time.time()
     mlab.options.offscreen = True
-    for frame_id, scale_to_plot in enumerate(list_of_scales_to_plot):
-        print(f'Animation frame {frame_id}, scale {scale_to_plot:.3f}, ETA: {(time.time()-t0)/(frame_id + 1)*(nframes - frame_id)/60:.1f} min')
+    for frame_id, scale_to_plot in enumerate(tqdm(list_of_scales_to_plot, desc='Animation frame')):
+        # print(f'Animation frame {frame_id}, scale {scale_to_plot:.3f}, ETA: {(time.time()-t0)/(frame_id + 1)*(nframes - frame_id)/60:.1f} min')
         path_for_united_fig = path_for_frames + f'/{frame_id:06d}.png'
         fig = plt.figure(figsize=(8,8))
-        fig.suptitle(f'Scale factor: {scale_to_plot:.3f}')
+        fig.suptitle(f'Scale $L/(2 \pi r)$: {scale_to_plot * xfactor:.3f}')
         gs1 = GridSpec(3, 2, left=0.15, right=0.95, wspace=0.05, height_ratios=[2, 1, 1])
         ax_path = fig.add_subplot(gs1[0, 0])
         ax_trace = fig.add_subplot(gs1[0, 1])
@@ -712,12 +722,14 @@ def animate_scale_sweep(path_type='brownian', path_for_frames='examples/brownian
 
         plot_mismatches_vs_scale(ax_angle, input_path_0, sweeped_scales, mismatch_angles,
                                  mark_one_scale=plot_solution,
-                                 scale_to_mark=scale_to_plot)
+                                 scale_to_mark=scale_to_plot,
+                                 length_of_path=length_of_path)
         plot_gb_areas(ax_area, sweeped_scales, gb_areas, mark_one_scale=plot_solution,
-                      scale_to_mark=scale_to_plot)
+                      scale_to_mark=scale_to_plot,
+                      length_of_path=length_of_path)
         for ax in [ax_angle, ax_area]:
             ax.set_aspect('auto')
-            ax.set_xlim(-1, maxscale)
+            ax.set_xlim(-1 * xfactor, maxscale * xfactor)
 
         # Plot the 3D and show it in the matplotlib subplot
         mfig = plot_spherical_trace_with_color_along_the_trace(
@@ -760,17 +772,20 @@ if __name__ == '__main__':
     #                           figsizefactor=0.85,
     #                           circle_center=[-1.7, -0.6],
     #                           circlealpha=1,
-    #                           range_for_searching_the_roots=(24.7, 24.9)
+    #                           range_for_searching_the_roots=(24.7, 24.9),
+    #                           trace_upsample_factor=1
     #                           )
     #
     # test_trajectoid_existence(path_type='spiral', path_for_figs='examples/spiral_path_1/figures',
     #                           forced_best_scale = 0.2588162519798698,
-    #                           nframes=30,
+    #                           nframes=300,
+    #                           minscale=0.001,
     #                           maxscale=0.4,
     #                           figsizefactor=0.85,
-    #                           circle_center=[0, 0],
+    #                           circle_center=[1.5, 0],
     #                           circlealpha=0.5,
-    #                           range_for_searching_the_roots=(0.25, 0.27)
+    #                           range_for_searching_the_roots=(0.25, 0.27),
+    #                           trace_upsample_factor=1
     #                           )
     #
     # test_trajectoid_existence(path_type='narrow', path_for_figs='examples/narrow_1/figures',
@@ -800,7 +815,8 @@ if __name__ == '__main__':
     #                           figsizefactor=0.85,
     #                           circle_center=[-1.7, -0.6],
     #                           circlealpha=1,
-    #                           range_for_searching_the_roots=(27.0, 27.5)
+    #                           range_for_searching_the_roots=(27.0, 27.5),
+    #                           trace_upsample_factor=1
     #                           )
 
     # # for main-text figure
@@ -825,7 +841,9 @@ if __name__ == '__main__':
     #                           figsizefactor=0.85,
     #                           circle_center=[0.6, -0.3],
     #                           circlealpha=1,
-    #                           range_for_searching_the_roots=(3.9, 4.1)
+    #                           range_for_searching_the_roots=(3.9, 4.1),
+    #                           trace_upsample_factor=1,
+    #                           plot_solution=False
     #                           )
 
     # test_trajectoid_existence(path_type='zigzag_2', path_for_figs='examples/zigzag_2/figures',
@@ -863,17 +881,29 @@ if __name__ == '__main__':
     #                           path_parameter=0.1
     #                           )
 
-    # test_trajectoid_existence(path_type='zigzag_kinked', path_for_figs='examples/zigzag_kinked/figures',
-    #                           forced_best_scale=19.6017, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-    #                           nframes=2000,
-    #                           maxscale=40,#70,
+    # test_trajectoid_existence(path_type='zigzag_tapered', path_for_figs='examples/zigzag_tapered/figures',
+    #                           forced_best_scale=26.6798465989, # 26.61504628916999, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                           nframes=2001,
+    #                           maxscale=28,#70,
     #                           figsizefactor=0.85,
-    #                           circle_center=[-1.7, -0.6],
+    #                           circle_center=[1.2, -0.8],
     #                           circlealpha=1,
     #                           plot_solution=True,
     #                           range_for_searching_the_roots='auto',  #(10.6, 10.9),
-    #                           path_parameter=0.1
+    #                           path_parameter=0.09
     #                           )
+
+    test_trajectoid_existence(path_type='zigzag_kinked', path_for_figs='examples/zigzag_kinked/figures',
+                              forced_best_scale=19.6017, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+                              nframes=2000,
+                              maxscale=40,#70,
+                              figsizefactor=0.85,
+                              circle_center=[-1.7, -0.6],
+                              circlealpha=1,
+                              plot_solution=False,
+                              range_for_searching_the_roots='auto',  #(10.6, 10.9),
+                              path_parameter=0.1
+                              )
 
     # test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
     #                           forced_best_scale=21.012723684811053, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
@@ -915,7 +945,7 @@ if __name__ == '__main__':
     #                               path_for_united_fig=f'examples/zigzag_tapered/figures/frames_paramsweep/{frame_id:06d}.png',
     #                               fig_title='Taper fraction: '
     #                               )
-
+    #
     # power_here=1
     # for frame_id, path_parameter in enumerate(np.linspace((0.01)**(1/power_here), (0.4)**(1/power_here), 80)**power_here):
     #     test_trajectoid_existence(path_type='zigzag_kinked', path_for_figs='examples/zigzag_kinked/figures',
@@ -932,7 +962,7 @@ if __name__ == '__main__':
     #                               fig_title='Declination of first kink arm, rad: ',
     #                               limit_area_curve=False
     #                               )
-
+    #
     # # Animating the path parameter sweep
     # power_here = 3
     # for frame_id, path_parameter in enumerate(np.linspace((0.08)**(1/power_here), (0.6)**(1/power_here), 80)**power_here):
@@ -951,31 +981,31 @@ if __name__ == '__main__':
     #                               trace_upsample_factor=300,
     #                               limit_area_curve=True
     #                               )
-
-    # Animating the path parameter sweep
-    power_here = 3
-    for frame_id, path_parameter in enumerate(np.linspace((0.03)**(1/power_here), (0.25)**(1/power_here), 80)**power_here):
-        test_trajectoid_existence(path_type='zigzag_smoothed', path_for_figs='examples/zigzag_smoothed/figures',
-                                  forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
-                                  nframes=800,
-                                  maxscale=45,#70,
-                                  figsizefactor=0.85,
-                                  circle_center=[1.202, -0.95],
-                                  circlealpha=1,
-                                  plot_solution=True,
-                                  range_for_searching_the_roots='auto',  #(10.6, 10.9),
-                                  path_parameter=path_parameter,
-                                  path_for_united_fig=f'examples/zigzag_smoothed/figures/frames_paramsweep/{frame_id:06d}.png',
-                                  fig_title='Corner curvature radius: '
-                                  )
+    #
+    # # Animating the path parameter sweep
+    # power_here = 3
+    # for frame_id, path_parameter in enumerate(np.linspace((0.03)**(1/power_here), (0.25)**(1/power_here), 80)**power_here):
+    #     test_trajectoid_existence(path_type='zigzag_smoothed', path_for_figs='examples/zigzag_smoothed/figures',
+    #                               forced_best_scale=False, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                               nframes=800,
+    #                               maxscale=45,#70,
+    #                               figsizefactor=0.85,
+    #                               circle_center=[1.202, -0.95],
+    #                               circlealpha=1,
+    #                               plot_solution=True,
+    #                               range_for_searching_the_roots='auto',  #(10.6, 10.9),
+    #                               path_parameter=path_parameter,
+    #                               path_for_united_fig=f'examples/zigzag_smoothed/figures/frames_paramsweep/{frame_id:06d}.png',
+    #                               fig_title='Corner curvature radius: '
+    #                               )
 
     # ## Scale sweep animations
     # animate_scale_sweep(path_type='zigzag_tapered', path_for_frames='examples/zigzag_tapered/figures/frames_scalesweep',
-    #                     npoints=2000, maxscale='best', figsizefactor=0.85, circle_center=[1.3, -0.8], circlealpha=1,
+    #                     npoints=2000, maxscale=26.61504628916999, circle_center=[1.3, -0.8], circlealpha=1,
     #                     plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
     #                     nframes=200, indices_to_plot = [3, 7])
 
     # animate_scale_sweep(path_type='zigzag', path_for_frames='examples/zigzag_1/figures/frames_scalesweep',
-    #                     npoints=700, maxscale=10, figsizefactor=0.85, circle_center=[1.3, -0.8], circlealpha=1,
+    #                     npoints=700, maxscale=10, circle_center=[1.3, -0.8], circlealpha=1,
     #                     plot_solution=True, range_for_searching_the_roots='auto', path_parameter=0.1,
     #                     nframes=200, indices_to_plot = [7, 21], spherical_trace_upsample_factor=10)
