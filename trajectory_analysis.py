@@ -42,13 +42,21 @@ def get_median_frame(min_frame, target_folder, nframes, step=10, two_colors=Fals
     return np.median(np.array(list_of_frames), axis=0)
 
 def trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=0, nframes=False, do_debug_plots=False,
-                                       two_colors=False):
+                                       two_colors=False, bkg_nframes=False, bkg_minframe=False, bkg_step=10):
     if not nframes:
         nframes = number_of_files(target_folder + '/frames/')
     makedir_if_needed(target_folder + '/processed_frames')
 
+    if not bkg_nframes:
+        bkg_nframes = nframes
+    if not bkg_minframe:
+        bkg_minframe = min_frame
+
     #get background
-    background_frame = get_median_frame(min_frame, target_folder, nframes=nframes, two_colors=two_colors)
+    background_frame = get_median_frame(bkg_minframe, target_folder, nframes=bkg_nframes, two_colors=two_colors, step=bkg_step)
+    if do_debug_plots:
+        plt.imshow(background_frame)
+        plt.show()
 
     cmass_xs = []
     cmass_ys = []
@@ -235,9 +243,14 @@ if __name__ == '__main__':
     # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
     # plot_experimental_trajectory(target_folder)
 
-    target_folder = 'examples/little-prince-2/video_2color'
-    trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots=False,
-                                       two_colors=True)
+    # target_folder = 'examples/little-prince-2/video_2color'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots=False,
+    #                                    two_colors=True)
+    # plot_experimental_trajectory(target_folder)
+
+    target_folder = 'examples/random_unclosed_1/video'
+    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=70, nframes=False, do_debug_plots=False, bkg_nframes=60, bkg_minframe=1, bkg_step=1)
     plot_experimental_trajectory(target_folder)
 
     # # COMPARING 6D POSE TRACKING TO CENTROID-OF-SHADOW METHOD
