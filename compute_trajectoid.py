@@ -899,9 +899,8 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     is_successful = True
     return res, is_successful
 
-def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1):
+def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1, linewidth=5):
     fig, ax = plt.subplots(figsize=(12, 2))
-    linewidth = 5
     alphabridge = 0.3
     bridgelen = npoints * 5 - 5
     dxs = [0,
