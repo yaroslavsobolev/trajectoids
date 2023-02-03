@@ -59,25 +59,25 @@ def plot_spherical_one_period(input_path, scale, plotting_upsample_factor=1000,
         mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=endpoint_radius, color=(0, 0, 0))
     return mfig
 
-# for frame_id, scale_to_plot in enumerate(tqdm(scale_list)):
-#     # if frame_id > 100 and frame_id % 2:
-#     # Plot the 3D and show it in the matplotlib subplot
-#     mfig = plot_spherical_one_period(
-#         input_path_single_section,
-#         scale_to_plot,
-#         sphere_opacity=0.6)
-#     # plot certain points
-#     # sphere_trace_single_section = trace_on_sphere(scale_to_plot * input_path_single_section, kx=1, ky=1)
-#     # colors_of_trace_points = [(0, 0, 1), (0, 1, 0)]
-#     # sphere_trace_full = trace_on_sphere(scale_to_plot * input_path_0, kx=1, ky=1)
-#     f = mlab.gcf()
-#     f.scene._lift()
-#     # cam = mfig.scene.camera
-#     # cam.zoom(1.5)
-#     mlab.view(azimuth=45, elevation=60, distance=5, focalpoint=(0, 0, 0))
-#     # mlab.show()
-#     mlab.savefig(f'examples/small-radius-limit-zigzag/scale-sweep-frames/frame{frame_id:08d}.png', magnification=2)
-#     mlab.close(all=True)
+for frame_id, scale_to_plot in enumerate(tqdm(scale_list)):
+    # if frame_id > 100 and frame_id % 2:
+    # Plot the 3D and show it in the matplotlib subplot
+    mfig = plot_spherical_one_period(
+        input_path_single_section,
+        scale_to_plot,
+        sphere_opacity=0.6)
+    # plot certain points
+    # sphere_trace_single_section = trace_on_sphere(scale_to_plot * input_path_single_section, kx=1, ky=1)
+    # colors_of_trace_points = [(0, 0, 1), (0, 1, 0)]
+    # sphere_trace_full = trace_on_sphere(scale_to_plot * input_path_0, kx=1, ky=1)
+    f = mlab.gcf()
+    f.scene._lift()
+    # cam = mfig.scene.camera
+    # cam.zoom(1.5)
+    mlab.view(azimuth=45, elevation=60, distance=5, focalpoint=(0, 0, 0))
+    # mlab.show()
+    mlab.savefig(f'examples/small-radius-limit-zigzag/scale-sweep-frames/frame{frame_id:08d}.png', magnification=2)
+    mlab.close(all=True)
 
 input_path_0 = double_the_path(input_path_single_section, do_plot=True)
 x = input_path_0[:, 0]

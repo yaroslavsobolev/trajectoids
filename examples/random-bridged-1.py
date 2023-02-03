@@ -63,40 +63,40 @@ sphere_trace = trace_on_sphere(input_path, kx=1, ky=1)
 # plot_three_path_periods(input_path, plot_midpoints=True, savetofile=target_folder + '/input_path')
 # plot_bridged_path(path_with_bridge, savetofilename=f'examples/random_bridged_1/input_path.png', npoints=npoints)
 
-# # For illustration in the paper
-# path_with_bridge = np.load(target_folder + '/folder_for_path/path_data.npy')
-# input_path_length = input_path.shape[0]
-# core_radius = 1
-# mfig = mlab.figure(size=(1024, 768), bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
-# tube_radius = 0.01
-# arccolor = tuple(np.array([44, 160, 44]) / 255)
-# arccolor = (1, 0, 0)
-# plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4, sphere_opacity=0.4)
-# tube_radius = tube_radius * 3
-#
-# sphere_trace = trace_on_sphere(input_path, kx=1, ky=1) * (1 + tube_radius)
-# l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=tuple(np.array([130, 130, 130])/255),
-#                 tube_radius=tube_radius)
-#
-# sphere_trace = trace_on_sphere(path_with_bridge, kx=1, ky=1) * (1 + tube_radius)
-# forward_arc_points, forward_straight_section_points, main_arc_points, backward_straight_section_points, backward_arc_points =\
-#             tuple(sphere_trace[input_path_length + npoints * n - 1
-#                   :input_path_length + npoints * (n + 1), :] for n in range(5))
-# for piece_of_bridge in [forward_arc_points, backward_arc_points]:
-#     p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=arccolor,
-#                     tube_radius=tube_radius)
-# for piece_of_bridge in [forward_straight_section_points, backward_straight_section_points]:
-#     p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2],
-#                     color=tuple(np.array([255, 127, 14]) / 255),
-#                     tube_radius=tube_radius)
-# for piece_of_bridge in [main_arc_points]:
-#     p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=arccolor,
-#                     tube_radius=tube_radius)
-# # for point_here in [backward_arc_points[0]]:
-# #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
-# mlab.view(elevation=120, azimuth=180, roll=-90)
-# # mlab.savefig('tests/figures/{0:.2f}.png'.format(input_declination_angle))
-# mlab.show()
+# For illustration in the paper
+path_with_bridge = np.load(target_folder + '/folder_for_path/path_data.npy')
+input_path_length = input_path.shape[0]
+core_radius = 1
+mfig = mlab.figure(size=(1024, 768), bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+tube_radius = 0.01
+arccolor = tuple(np.array([44, 160, 44]) / 255)
+arccolor = (1, 0, 0)
+plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4, sphere_opacity=0.4)
+tube_radius = tube_radius * 3
+
+sphere_trace = trace_on_sphere(input_path, kx=1, ky=1) * (1 + tube_radius)
+l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=tuple(np.array([130, 130, 130])/255),
+                tube_radius=tube_radius)
+
+sphere_trace = trace_on_sphere(path_with_bridge, kx=1, ky=1) * (1 + tube_radius)
+forward_arc_points, forward_straight_section_points, main_arc_points, backward_straight_section_points, backward_arc_points =\
+            tuple(sphere_trace[input_path_length + npoints * n - 1
+                  :input_path_length + npoints * (n + 1), :] for n in range(5))
+for piece_of_bridge in [forward_arc_points, backward_arc_points]:
+    p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=arccolor,
+                    tube_radius=tube_radius)
+for piece_of_bridge in [forward_straight_section_points, backward_straight_section_points]:
+    p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2],
+                    color=tuple(np.array([255, 127, 14]) / 255),
+                    tube_radius=tube_radius)
+for piece_of_bridge in [main_arc_points]:
+    p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=arccolor,
+                    tube_radius=tube_radius)
+# for point_here in [backward_arc_points[0]]:
+#     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
+mlab.view(elevation=120, azimuth=180, roll=-90)
+# mlab.savefig('tests/figures/{0:.2f}.png'.format(input_declination_angle))
+mlab.show()
 
 # Flat path for first illustration
 path_with_bridge = np.load(target_folder + '/folder_for_path/path_data.npy')

@@ -1,6 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+def simpleaxis(ax):
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.get_xaxis().tick_bottom()
+    ax.get_yaxis().tick_left()
+
 def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
@@ -73,7 +79,7 @@ def draw_pulse(S, scale_type='time'):
     # plt.show()
 
 figsizefactor = 0.8
-fig, axarr = plt.subplots(2, 1, gridspec_kw={'height_ratios': [2, 1]}, sharex=True, figsize=(11*figsizefactor,3.7*figsizefactor))
+fig, axarr = plt.subplots(2, 1, gridspec_kw={'height_ratios': [2, 1]}, sharex=True, figsize=(11*figsizefactor,4.7*figsizefactor))
 
 def add_plots(S = 1.5, color = 'C0', scale_type='time', label=None):
     ts, signal, Es, phaseshifts = draw_pulse(S, scale_type=scale_type)
@@ -86,9 +92,14 @@ def add_plots(S = 1.5, color = 'C0', scale_type='time', label=None):
     ax.set_ylim(-1.6, 1.6)
     # ax.legend()
     ax = axarr[1]
-    ax.plot(ts, phaseshifts, color=color, linewidth=2 if color == 'black' else 6,
-            zorder=10 if color == 'black' else 5,
-            alpha=1 if color == 'black' else 0.5)
+    if scale_type == 'time':
+        ax.plot(ts, phaseshifts, color=color, linewidth=2 if color == 'black' else 2,
+                zorder=10 if color == 'black' else 5,
+                alpha=1 if color == 'black' else 0.7)
+    else:
+        ax.plot(ts, phaseshifts, color=color, linewidth=2 if color == 'black' else 6,
+                zorder=10 if color == 'black' else 5,
+                alpha=1 if color == 'black' else 0.7)
 
 add_plots(S=1, color='black', scale_type='time', label='Input pulse')
 add_plots(S=1.5, color='C0', scale_type='time')
@@ -99,10 +110,15 @@ ax = axarr[1]
 ax.set_xlabel('Time, a.u.')
 ax.set_ylabel('Phase shift,\n rad.')
 ax.set_ylim(0, 33)
-ax.set_xlim(0, 1.6)
+ax.set_xlim(0, 1.55)
+
+for ax in axarr:
+    simpleaxis(ax)
+axarr[0].spines['bottom'].set_visible(False)
+axarr[0].tick_params(bottom=False)
 # axarr[0].legend()
 plt.tight_layout()
-fig.savefig('tests/qubits/figures/for_si_figure.png', dpi=300)
+fig.savefig('tests/qubits/figures/for_si_figure_noborders.png', dpi=300)
 plt.show()
 # fig.savefig(f'tests/qubits/figures/frames_{scale_type}/{frame_id:08d}.png', dpi=300)
 # plt.close(fig)
