@@ -11,9 +11,9 @@ two_period_trajectoid_folders = \
     'random_doubled_4',
     'random_doubled_5',
     'little-prince-2']
-#
-# for folder_name in two_period_trajectoid_folders:
-#     replot_path_from_numpy(f'examples/{folder_name}/', plot_midpoints=True)
+
+for folder_name in two_period_trajectoid_folders:
+    replot_path_from_numpy(f'examples/{folder_name}/', plot_midpoints=True)
 
 one_period_trajectoid_folders = \
     ['random_unclosed_1',
