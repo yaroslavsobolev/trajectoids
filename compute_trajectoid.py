@@ -426,11 +426,11 @@ def plot_three_path_periods(input_path, savetofile=False, plot_midpoints=False):
     dataxlen = np.max(input_path[:, 0])
 
     def plot_periods(data, linestyle, linewidth):
-        plt.plot(data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle, linewidth=linewidth)
+        plt.plot(data[:, 0], data[:, 1], color='black', alpha=1, linestyle=linestyle, linewidth=linewidth)
         plt.plot(dataxlen + data[:, 0], data[:, 1], color='black', alpha=1, linestyle=linestyle, linewidth=linewidth)
-        plt.plot(2 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
+        plt.plot(2 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=1, linestyle=linestyle,
                  linewidth=linewidth)
-        plt.plot(3 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
+        plt.plot(3 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=1, linestyle=linestyle,
                  linewidth=linewidth)
 
     # plot_periods(data, '--', linewidth=0.5)
