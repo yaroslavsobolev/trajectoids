@@ -354,6 +354,37 @@ def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
         mlab.show()
     return sphere_trace
 
+def trace_on_sphere_nonocontact_point(data0, kx, ky, core_radius=1, do_plot=False, startpoint = [0, 0, -1]):
+    data = np.copy(data0)
+    data[:, 0] = data[:, 0] * kx
+    data[:, 1] = data[:, 1] * ky  # +  kx * np.sin(data0[:, 0]/2)
+    point_at_plane = trimesh.PointCloud([startpoint])
+    sphere_trace = []
+    for i, point in enumerate(data):
+        point_at_plane_copy = point_at_plane.copy()
+        point_at_plane_copy.apply_transform(rotation_to_origin(i, data))
+        sphere_trace.append(np.array(point_at_plane_copy.vertices[0]))
+    sphere_trace = np.array(sphere_trace)
+    if do_plot:
+        mlab.figure(size=(1024, 768), \
+                    bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+        # tube_radius=0.05
+        tube_radius = 0.01
+
+        plot_sphere(r0 = core_radius - tube_radius, line_radius = tube_radius/4)
+        # # plot a simple sphere
+        # phi, theta = np.mgrid[0:np.pi:31j, 0:2 * np.pi:31j]
+        # r = 0.95
+        # x = r * np.sin(phi) * np.cos(theta)
+        # y = r * np.sin(phi) * np.sin(theta)
+        # z = r * np.cos(phi)
+        # mlab.mesh(x, y, z, color=(0.7, 0.7, 0.7), opacity=0.736, representation='surface') #representation='wireframe'
+        # plot the trace
+        l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
+                        tube_radius=tube_radius)
+        mlab.show()
+    return sphere_trace
+
 def path_from_trace(sphere_trace, core_radius=1):
     sphere_trace_cloud = trimesh.PointCloud(sphere_trace)
     translation_vectors = []
