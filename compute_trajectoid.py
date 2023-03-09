@@ -14,6 +14,9 @@ from scipy.signal import savgol_filter
 from functools import lru_cache
 from tqdm import tqdm
 import logging
+import sys
+
+sys.setrecursionlimit(3000)
 
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
@@ -34,6 +37,7 @@ import plotly.graph_objects as go
 
 last_path = np.array([0, 0])
 cached_rotations_to_origin = dict()
+
 
 @jit(nopython=True)
 def numbacross(a, b):
@@ -66,14 +70,17 @@ def intersects(A, B, C, D):
     s += numbadotsign(numbacross(D, CDX), T)
     return (s == 4) or (s == -4)
 
+
 def sort_path(arr2D):
     columnIndex = 0
     return arr2D[arr2D[:, columnIndex].argsort()]
 
+
 def split_by_mask(signal, input_mask):
-    mask = np.concatenate(([False], input_mask, [False] ))
+    mask = np.concatenate(([False], input_mask, [False]))
     idx = np.flatnonzero(mask[1:] != mask[:-1])
-    return [signal[idx[i]:idx[i+1]] for i in range(0,len(idx),2)]
+    return [signal[idx[i]:idx[i + 1]] for i in range(0, len(idx), 2)]
+
 
 def better_mayavi_lights(fig):
     azims = [60, -60, 60, -60]
@@ -85,6 +92,7 @@ def better_mayavi_lights(fig):
         camera_light0.intensity = 0.5
         camera_light0.activate = True
 
+
 def make_orbit_animation(folder_for_frames, nframes=60, elevation=60):
     mlab.view(elevation=elevation)
     for frame_id, azimuth in enumerate(np.linspace(0, 359, nframes)):
@@ -95,6 +103,7 @@ def make_orbit_animation(folder_for_frames, nframes=60, elevation=60):
         # mfig.actors.actor.rotate_y(5)
         mlab.savefig(f'{folder_for_frames}/{frame_id:08d}.png')
 
+
 def signed_angle_between_2d_vectors(vector1, vector2):
     """Calculate the signed angle between two 2-dimensional vectors using the atan2 formula.
     The angle is positive if rotation from vector1 to vector2 is counterclockwise, and negative
@@ -103,12 +112,13 @@ def signed_angle_between_2d_vectors(vector1, vector2):
     This is more numerically stable for angles close to 0 or pi than the acos() formula.
     """
     # make sure that vectors are 2d
-    assert vector1.shape == (2, )
-    assert vector2.shape == (2, )
+    assert vector1.shape == (2,)
+    assert vector2.shape == (2,)
     # Convert to 3D for making cross product
-    vector1_ = np.append(vector1, 0)/np.linalg.norm(vector1)
-    vector2_ = np.append(vector2, 0)/np.linalg.norm(vector2)
+    vector1_ = np.append(vector1, 0) / np.linalg.norm(vector1)
+    vector2_ = np.append(vector2, 0) / np.linalg.norm(vector2)
     return atan2(np.cross(vector1_, vector2_)[-1], np.dot(vector1_, vector2_))
+
 
 def unsigned_angle_between_vectors(vector1, vector2):
     """Calculate the unsigned angle between two n-dimensional vectors using the atan2 formula.
@@ -118,34 +128,37 @@ def unsigned_angle_between_vectors(vector1, vector2):
     """
     return atan2(np.linalg.norm(np.cross(vector1, vector2)), np.dot(vector1, vector2))
 
+
 def rotate_2d(vector, angle):
-        """
-        Rotate a point counterclockwise by a given angle around a given origin.
+    """
+    Rotate a point counterclockwise by a given angle around a given origin.
 
-        The angle should be given in radians.
-        """
-        ox, oy = (0, 0)
-        px, py = vector
+    The angle should be given in radians.
+    """
+    ox, oy = (0, 0)
+    px, py = vector
 
-        qx = ox + np.cos(angle) * (px - ox) - np.sin(angle) * (py - oy)
-        qy = oy + np.sin(angle) * (px - ox) + np.cos(angle) * (py - oy)
-        return np.array([qx, qy])
+    qx = ox + np.cos(angle) * (px - ox) - np.sin(angle) * (py - oy)
+    qy = oy + np.sin(angle) * (px - ox) + np.cos(angle) * (py - oy)
+    return np.array([qx, qy])
+
 
 def rotate_3d_vector(input_vector, axis_of_rotation, angle):
-        point1_trimesh = trimesh.PointCloud([input_vector])
-        rotation_matrix = trimesh.transformations.rotation_matrix(angle=angle,
-                                                                  direction=axis_of_rotation,
-                                                                  point=[0, 0, 0])
-        point1_trimesh.apply_transform(rotation_matrix)
-        return np.array(point1_trimesh.vertices[0])
+    point1_trimesh = trimesh.PointCloud([input_vector])
+    rotation_matrix = trimesh.transformations.rotation_matrix(angle=angle,
+                                                              direction=axis_of_rotation,
+                                                              point=[0, 0, 0])
+    point1_trimesh.apply_transform(rotation_matrix)
+    return np.array(point1_trimesh.vertices[0])
+
 
 def spherical_trace_is_self_intersecting(sphere_trace):
     # t0 = time.time()
-    arcs = [[sphere_trace[i], sphere_trace[i+1]] for i in range(sphere_trace.shape[0]-1)]
+    arcs = [[sphere_trace[i], sphere_trace[i + 1]] for i in range(sphere_trace.shape[0] - 1)]
     intersection_detected = False
     for i in range(len(arcs)):
         for j in reversed(range(len(arcs))):
-            if (j <= (i + 1)) or ((i == 0) and (j == (len(arcs)-1))):
+            if (j <= (i + 1)) or ((i == 0) and (j == (len(arcs) - 1))):
                 continue
             else:
                 if intersects(arcs[i][0], arcs[i][1], arcs[j][0], arcs[j][1]):
@@ -157,19 +170,15 @@ def spherical_trace_is_self_intersecting(sphere_trace):
     # print(f"Computed intesections in {(time.time() - t0)} seconds")
     return intersection_detected
 
-# def rotate_2d_by_matrix(vector, theta):
-#     c, s = np.cos(theta), np.sin(theta)
-#     R = np.array(((c, -s), (s, c)))
-#     return
 
 def get_trajectory_from_raster_image(filename, do_plotting=True):
-    image = io.imread(filename)[:,:,0]
+    image = io.imread(filename)[:, :, 0]
     trajectory_points = np.zeros(shape=(image.shape[0], 2))
     for i in range(image.shape[0]):
-        trajectory_points[i, 0] = i/image.shape[0]*2*np.pi #assume that x dimension of path is 2*pi
-        trajectory_points[i, 1] = np.argmin(image[i, :])/image.shape[1]*np.pi - np.pi/2
-    trajectory_points[:, 1] -= trajectory_points[0, 1] # make path relative to first point
-    trajectory_points = trajectory_points[::5, :] # decimation by a factor 5
+        trajectory_points[i, 0] = i / image.shape[0] * 2 * np.pi  # assume that x dimension of path is 2*pi
+        trajectory_points[i, 1] = np.argmin(image[i, :]) / image.shape[1] * np.pi - np.pi / 2
+    trajectory_points[:, 1] -= trajectory_points[0, 1]  # make path relative to first point
+    trajectory_points = trajectory_points[::5, :]  # decimation by a factor 5
     print('Decimated to {0} elements'.format(trajectory_points.shape[0]))
     if do_plotting:
         print(trajectory_points[0, 1])
@@ -179,14 +188,16 @@ def get_trajectory_from_raster_image(filename, do_plotting=True):
         plt.show()
     return trajectory_points
 
+
 def rotation_from_point_to_point(point, previous_point):
     vector_to_previous_point = previous_point - point
     axis_of_rotation = [vector_to_previous_point[1], -vector_to_previous_point[0], 0]
     theta = np.linalg.norm(vector_to_previous_point)
-    rotation_matrix = trimesh.transformations.rotation_matrix(angle=-1*theta,
-                                            direction=axis_of_rotation,
-                                            point=[0, 0, 0])
+    rotation_matrix = trimesh.transformations.rotation_matrix(angle=-1 * theta,
+                                                              direction=axis_of_rotation,
+                                                              point=[0, 0, 0])
     return rotation_matrix, theta
+
 
 def rotation_to_previous_point(i, data):
     # make turn w.r.t. an apporopriate axis parallel to xy plane to get to the previous point.
@@ -194,8 +205,6 @@ def rotation_to_previous_point(i, data):
     previous_point = data[i - 1]
     return rotation_from_point_to_point(point, previous_point)
 
-import sys
-sys.setrecursionlimit(3000)
 
 def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True):
     if use_cache:
@@ -218,16 +227,17 @@ def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True
                 matrix_of_rotation_to_previous_point, theta = rotation_to_previous_point(i, data)
                 theta_sum += theta
                 net_rotation_matrix = trimesh.transformations.concatenate_matrices(matrix_of_rotation_to_previous_point,
-                                                                               net_rotation_matrix)
+                                                                                   net_rotation_matrix)
     elif recursive:
         theta_sum = 0
         if index_in_trajectory == 0:
             net_rotation_matrix = trimesh.transformations.identity_matrix()
         else:
             net_rotation_matrix, theta = rotation_to_previous_point(index_in_trajectory, data)
-            net_rotation_matrix = trimesh.transformations.concatenate_matrices(rotation_to_origin(index_in_trajectory-1,
-                                                                                                  data, use_cache, recursive),
-                                                                               net_rotation_matrix)
+            net_rotation_matrix = trimesh.transformations.concatenate_matrices(
+                rotation_to_origin(index_in_trajectory - 1,
+                                   data, use_cache, recursive),
+                net_rotation_matrix)
     # add to cache
     if use_cache:
         cache_have_same_path = False
@@ -245,6 +255,7 @@ def rotation_to_origin(index_in_trajectory, data, use_cache=True, recursive=True
 
     return net_rotation_matrix
 
+
 def plot_mismatch_map_for_scale_tweaking(data0, N=30, M=30, kx_range=(0.1, 2), ky_range=(0.1, 2), vmin=0, vmax=np.pi,
                                          signed_angle=False):
     # sweeping parameter space for optimal match of the starting and ending orientation
@@ -255,8 +266,9 @@ def plot_mismatch_map_for_scale_tweaking(data0, N=30, M=30, kx_range=(0.1, 2), k
         for j, ky in enumerate(np.linspace(ky_range[0], ky_range[1], M)):
             data = np.copy(data0)
             data[:, 0] = data[:, 0] * kx
-            data[:, 1] = data[:, 1] * ky# +  kx * np.sin(data0[:, 0])
-            rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(rotation_to_origin(data.shape[0]-1, data))
+            data[:, 1] = data[:, 1] * ky  # +  kx * np.sin(data0[:, 0])
+            rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(
+                rotation_to_origin(data.shape[0] - 1, data))
             angle = rotation_of_entire_traj[0]
             xs[i, j] = kx
             ys[i, j] = ky
@@ -271,8 +283,9 @@ def plot_mismatch_map_for_scale_tweaking(data0, N=30, M=30, kx_range=(0.1, 2), k
     plt.colorbar()
     plt.show()
 
+
 def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes', core_radius=1,
-                  cut_size = 10):
+                  cut_size=10):
     data = np.copy(data0)
     data[:, 0] = data[:, 0] * kx
     data[:, 1] = data[:, 1] * ky
@@ -285,7 +298,8 @@ def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes'
 
     np.save(folder_for_path + '/path_data', data)
     base_box = trimesh.creation.box(extents=[cut_size * core_radius, cut_size * core_radius, cut_size * core_radius],
-                                    transform=trimesh.transformations.translation_matrix([0, 0, -core_radius - 1 * cut_size * core_radius / 2]))
+                                    transform=trimesh.transformations.translation_matrix(
+                                        [0, 0, -core_radius - 1 * cut_size * core_radius / 2]))
     boxes_for_cutting = []
     for i, point in enumerate(data):
         # make a copy of the base box
@@ -299,16 +313,17 @@ def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes'
         print('Saving box for cutting: {0}'.format(i))
         box.export('{0}/test_{1}.obj'.format(folder_for_meshes, i))
 
+
 def plot_sphere(r0, line_radius, sphere_opacity=.8):
     sphere = mlab.points3d(0, 0, 0, scale_mode='none',
-                           scale_factor=2*r0,
+                           scale_factor=2 * r0,
                            color=(1, 1, 1),
                            resolution=100,
                            opacity=sphere_opacity,
                            name='Earth')
     sphere.actor.property.frontface_culling = True
 
-    phi = np.linspace(0, 2*np.pi, 50)
+    phi = np.linspace(0, 2 * np.pi, 50)
     r = r0 + line_radius
     for theta in np.linspace(0, np.pi, 7)[:-1]:
         mlab.plot3d(
@@ -316,12 +331,13 @@ def plot_sphere(r0, line_radius, sphere_opacity=.8):
             r * np.sin(phi) * np.sin(theta),
             r * np.cos(phi), tube_radius=line_radius)
 
-    theta = np.linspace(0, 2*np.pi, 50)
+    theta = np.linspace(0, 2 * np.pi, 50)
     for phi in np.linspace(0, np.pi, 7)[:-1]:
         mlab.plot3d(
             r * np.sin(phi) * np.cos(theta),
             r * np.sin(phi) * np.sin(theta),
             r * np.cos(phi) * np.ones_like(theta), tube_radius=line_radius)
+
 
 def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
     data = np.copy(data0)
@@ -340,7 +356,7 @@ def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
         # tube_radius=0.05
         tube_radius = 0.01
 
-        plot_sphere(r0 = core_radius - tube_radius, line_radius = tube_radius/4)
+        plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
         # # plot a simple sphere
         # phi, theta = np.mgrid[0:np.pi:31j, 0:2 * np.pi:31j]
         # r = 0.95
@@ -354,7 +370,8 @@ def trace_on_sphere(data0, kx, ky, core_radius=1, do_plot=False):
         mlab.show()
     return sphere_trace
 
-def trace_on_sphere_nonocontact_point(data0, kx, ky, core_radius=1, do_plot=False, startpoint = [0, 0, -1]):
+
+def trace_on_sphere_nonocontact_point(data0, kx, ky, core_radius=1, do_plot=False, startpoint=[0, 0, -1]):
     data = np.copy(data0)
     data[:, 0] = data[:, 0] * kx
     data[:, 1] = data[:, 1] * ky  # +  kx * np.sin(data0[:, 0]/2)
@@ -371,7 +388,7 @@ def trace_on_sphere_nonocontact_point(data0, kx, ky, core_radius=1, do_plot=Fals
         # tube_radius=0.05
         tube_radius = 0.01
 
-        plot_sphere(r0 = core_radius - tube_radius, line_radius = tube_radius/4)
+        plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
         # # plot a simple sphere
         # phi, theta = np.mgrid[0:np.pi:31j, 0:2 * np.pi:31j]
         # r = 0.95
@@ -385,20 +402,21 @@ def trace_on_sphere_nonocontact_point(data0, kx, ky, core_radius=1, do_plot=Fals
         mlab.show()
     return sphere_trace
 
+
 def path_from_trace(sphere_trace, core_radius=1):
     sphere_trace_cloud = trimesh.PointCloud(sphere_trace)
     translation_vectors = []
     position_vectors = [np.array([0, 0])]
     vector_downward = np.array([0, 0, -core_radius])
-    for i in range(sphere_trace.shape[0]-1):
+    for i in range(sphere_trace.shape[0] - 1):
         # make sure that current (i-th) point is the contact point and therefore coincides with the
         #   downward vector.
         assert np.isclose(vector_downward, sphere_trace[i]).all()
-        to_next_point_of_trace = sphere_trace[i+1] - vector_downward
+        to_next_point_of_trace = sphere_trace[i + 1] - vector_downward
 
         # find the vector of translation
         theta = np.arccos(-sphere_trace[i + 1, 2] / core_radius)
-        arc_length = theta*core_radius
+        arc_length = theta * core_radius
         # Here the vector to_next_point_of_trace[:-1] is the xy-projection of to_next_point_of_trace vector
         #   We normalize it and then multiply by arc length to get translation vector.
         translation_vector = arc_length * to_next_point_of_trace[:-1] / np.linalg.norm(to_next_point_of_trace[:-1])
@@ -411,15 +429,16 @@ def path_from_trace(sphere_trace, core_radius=1):
         # directly downlward, equal to [0, 0, -core_radius]
         # Axis of rotation lies in the xy plane and is perpendicular to the vector to_next_point_of_trace
         axis_of_rotation = [to_next_point_of_trace[1], -to_next_point_of_trace[0], 0]
-        rotation_matrix = trimesh.transformations.rotation_matrix(angle=-1*theta,
-                                                direction=axis_of_rotation,
-                                                point=[0, 0, 0])
+        rotation_matrix = trimesh.transformations.rotation_matrix(angle=-1 * theta,
+                                                                  direction=axis_of_rotation,
+                                                                  point=[0, 0, 0])
         sphere_trace_cloud.apply_transform(rotation_matrix)
         sphere_trace = np.array(sphere_trace_cloud.vertices)
 
     translation_vectors = np.array(translation_vectors)
     position_vectors = np.array(position_vectors)
     return position_vectors
+
 
 def plot_three_path_periods(input_path, savetofile=False, plot_midpoints=False):
     figtraj = plt.figure(10, figsize=(10, 5))
@@ -441,16 +460,18 @@ def plot_three_path_periods(input_path, savetofile=False, plot_midpoints=False):
         plt.scatter(shift + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
     # plt.scatter(dataxlen + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
     if plot_midpoints:
-        midpoint_index = int(round(input_path.shape[0]/2))
-        for shift in dataxlen*np.arange(4):
-            plt.scatter(shift + input_path[midpoint_index, 0], input_path[midpoint_index, 1], s=35, facecolors='white', edgecolors='black')
+        midpoint_index = int(round(input_path.shape[0] / 2))
+        for shift in dataxlen * np.arange(4):
+            plt.scatter(shift + input_path[midpoint_index, 0], input_path[midpoint_index, 1], s=35, facecolors='white',
+                        edgecolors='black')
     plt.axis('equal')
     if savetofile:
         figtraj.savefig(f'{savetofile}.png', dpi=300)
         figtraj.savefig(f'{savetofile}.eps')
     plt.show()
 
-def bridge_two_points_by_arc(point1, point2, npoints = 10):
+
+def bridge_two_points_by_arc(point1, point2, npoints=10):
     '''points are 3d vectors from center of unit sphere to sphere surface'''
     # make sure that the lengths of input vectors are equal to unity
     for point in [point1, point2]:
@@ -471,9 +492,10 @@ def bridge_two_points_by_arc(point1, point2, npoints = 10):
         points_of_bridge.append(point_here)
     return np.array(points_of_bridge)
 
-def filter_backward_declination(declination_angle, input_path, maximum_angle_from_vertical = np.pi/180*80):
+
+def filter_backward_declination(declination_angle, input_path, maximum_angle_from_vertical=np.pi / 180 * 80):
     if declination_angle > np.pi:
-        declination_angle = declination_angle - 2*np.pi
+        declination_angle = declination_angle - 2 * np.pi
     tangent_backward = input_path[0] - input_path[1]
     angle0 = signed_angle_between_2d_vectors(np.array([-1, 0]), tangent_backward)
 
@@ -491,9 +513,10 @@ def filter_backward_declination(declination_angle, input_path, maximum_angle_fro
         declination_angle = declination_angle + 1e-4
     return declination_angle
 
-def filter_forward_declination(declination_angle, input_path, maximum_angle_from_vertical = np.pi/180*80):
+
+def filter_forward_declination(declination_angle, input_path, maximum_angle_from_vertical=np.pi / 180 * 80):
     if declination_angle > np.pi:
-        declination_angle = declination_angle - 2*np.pi
+        declination_angle = declination_angle - 2 * np.pi
     tangent_forward = input_path[-1] - input_path[-2]
     angle0 = signed_angle_between_2d_vectors(np.array([1, 0]), tangent_forward)
 
@@ -511,7 +534,8 @@ def filter_forward_declination(declination_angle, input_path, maximum_angle_from
         declination_angle = declination_angle + 1e-4
     return declination_angle
 
-def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, do_plot = True):
+
+def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, do_plot=True):
     # Overall plan:
     # 1. forward declined section
     #       1.1. Filter forward declination angle -- make sure it's not too deflected from the downward direction
@@ -540,8 +564,8 @@ def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, d
     #     plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
     #     l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
     #                     tube_radius=tube_radius)
-        # for point_here in [small_forward_arc]:
-        #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.1, color=(0, 1, 0))
+    # for point_here in [small_forward_arc]:
+    #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.1, color=(0, 1, 0))
 
     def get_backward_arc_axis(input_declination_angle, input_path, sphere_trace):
         axis_at_first_point = np.cross(sphere_trace[0], sphere_trace[1])
@@ -551,7 +575,7 @@ def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, d
         return backward_arc_axis
 
     backward_arc_axis = get_backward_arc_axis(input_declination_angle, input_path, sphere_trace)
-    small_backward_arc = rotate_3d_vector(sphere_trace[0], backward_arc_axis, -1*small_angle)
+    small_backward_arc = rotate_3d_vector(sphere_trace[0], backward_arc_axis, -1 * small_angle)
     # check whether the forward and backward small arcs are on the same hemisphere with respect to the plane
     # passing through the sphere center and the line connecting the last point and first point
     reference_plane_normal = np.cross(sphere_trace[-1], sphere_trace[0])
@@ -559,7 +583,7 @@ def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, d
     backward_sign = np.dot(small_backward_arc - sphere_trace[0], reference_plane_normal)
     # if they are not on the same side, then use opposite declination for backward arc
     if forward_sign * backward_sign < 0:
-        backward_arc_axis = get_backward_arc_axis(-1*input_declination_angle, input_path, sphere_trace)
+        backward_arc_axis = get_backward_arc_axis(-1 * input_declination_angle, input_path, sphere_trace)
         small_backward_arc = rotate_3d_vector(sphere_trace[0], backward_arc_axis, -1 * small_angle)
 
     # if do_plot:
@@ -571,7 +595,7 @@ def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, d
     intersection = np.cross(forward_arc_axis, backward_arc_axis)
     intersection = intersection / np.linalg.norm(intersection)
     if np.dot(intersection, reference_plane_normal) * forward_sign < 0:
-        intersection = -1*intersection
+        intersection = -1 * intersection
 
     # if do_plot:
     #     for point_here in [intersection]:
@@ -590,16 +614,19 @@ def make_corner_bridge_candidate(input_declination_angle, input_path, npoints, d
     input_path_with_bridge = path_from_trace(trace_width_bridge)
     return input_path_with_bridge
 
+
 def mismatch_angle_for_path(input_path, recursive=False, use_cache=False):
     rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(
         rotation_to_origin(input_path.shape[0] - 1, input_path, recursive=recursive, use_cache=use_cache))
     angle = rotation_of_entire_traj[0]
     return angle
 
+
 def mismatch_angle_for_bridge(declination_angle, input_path, npoints=30):
     path_with_bridge = make_corner_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False)
     angle = mismatch_angle_for_path(path_with_bridge)
     return angle
+
 
 def find_best_bridge(input_path, npoints=30, do_plot=True):
     declination_angles = np.linspace(-np.pi * 0.75, np.pi * 0.75, 13)
@@ -612,16 +639,20 @@ def find_best_bridge(input_path, npoints=30, do_plot=True):
     if do_plot:
         plt.plot(declination_angles, mismatches, 'o-')
         plt.show()
-    def left_hand_side(x): # the function whose root we want to find
+
+    def left_hand_side(x):  # the function whose root we want to find
         return np.array([mismatch_angle_for_bridge(s, input_path, npoints=30) for s in x])
+
     best_declination = fsolve(left_hand_side, initial_guess, maxfev=20)
     print(f'Best declination: {best_declination}')
     print(f'Best mismatch: {left_hand_side(best_declination)}')
     return best_declination[0]
 
 
-def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30, return_error_messages=True, min_curvature_radius=0.2):
-    path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints, do_plot=False,
+def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30, return_error_messages=True,
+                                     min_curvature_radius=0.2):
+    path_with_bridge, is_successful = make_smooth_bridge_candidate(declination_angle, input_path, npoints=npoints,
+                                                                   do_plot=False,
                                                                    min_curvature_radius=min_curvature_radius)
     angle = mismatch_angle_for_path(path_with_bridge)
     if return_error_messages:
@@ -630,7 +661,8 @@ def mismatch_angle_for_smooth_bridge(declination_angle, input_path, npoints=30, 
         return angle
 
 
-def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declination=np.pi/180*80, min_curvature_radius=0.2):
+def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declination=np.pi / 180 * 80,
+                            min_curvature_radius=0.2):
     declination_angles = np.linspace(-max_declination, max_declination, 20)
     mismatches = []
     for i, declination_angle in enumerate(declination_angles):
@@ -639,9 +671,9 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declinatio
         logging.debug(f'Preliminary screening, step {i} completed')
     mismatches = np.array(mismatches)
     # use split by mask here and find roots in each subsection
-    mask_here = mismatches[:,1]
+    mask_here = mismatches[:, 1]
     declination_fragments = split_by_mask(declination_angles, mask_here)
-    mismatches_fragments = split_by_mask(mismatches[:,0], mask_here)
+    mismatches_fragments = split_by_mask(mismatches[:, 0], mask_here)
     found_sign_change = False
     for i, mismatches_fragment in enumerate(mismatches_fragments):
         if np.max(mismatches_fragment) >= 0 and np.min(mismatches_fragment) <= 0:
@@ -650,13 +682,13 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declinatio
             linear_interpolator_function = interpolate.interp1d(declination_fragments[i], mismatches_fragment)
             found_sign_change = True
             break
-    if not found_sign_change: # this means failure of the entire endeavour
+    if not found_sign_change:  # this means failure of the entire endeavour
         return False
     else:
         initial_guess = brentq(linear_interpolator_function, a=minangle, b=maxangle)
         position = np.argmax(declination_angles > initial_guess)
         maxangle = declination_angles[position]
-        minangle = declination_angles[position-1]
+        minangle = declination_angles[position - 1]
         logging.debug(f'Sign-changing interval: from {minangle} to {maxangle}')
         # initial_guess = declination_angles[np.argmin(np.abs(np.array(mismatches)))]
         logging.debug(f'Initial guess: {initial_guess}')
@@ -664,20 +696,22 @@ def find_best_smooth_bridge(input_path, npoints=30, do_plot=True, max_declinatio
             # mlab.show()
             plt.plot(declination_angles, mismatches, 'o-')
             plt.show()
-        def left_hand_side(x): # the function whose root we want to find
+
+        def left_hand_side(x):  # the function whose root we want to find
             logging.debug(f'Sampling function at x={x}')
             return mismatch_angle_for_smooth_bridge(x, input_path, npoints=npoints, return_error_messages=False,
                                                     min_curvature_radius=min_curvature_radius)
+
         best_declination = brentq(left_hand_side, a=minangle, b=maxangle, maxiter=20, xtol=0.001, rtol=0.004)
         logging.debug(f'Best declination: {best_declination}')
         logging.debug(f'Best mismatch: {left_hand_side(best_declination)}')
         return best_declination
 
 
-def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius = 0.2,
-                                 do_plot = True, mlab_show = False, make_animation=False,
-                                 default_forward_angle = 'downward',
-                                 default_backward_angle = 'downward'):
+def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, min_curvature_radius=0.2,
+                                 do_plot=True, mlab_show=False, make_animation=False,
+                                 default_forward_angle='downward',
+                                 default_backward_angle='downward'):
     # forward smooth deflection section is a semicircle made by slowly rotating tangent with a given curvature radius
     #   until the total accumulated angle (in plane) is equal to the input deflection angle
     # Backward deflection section is created similarly.
@@ -699,25 +733,8 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
         axis_of_direct_bridge = np.cross(sphere_trace[-1], sphere_trace[0])
         sign_here = np.sign(np.dot(sphere_trace[-1],
                                    np.cross(axis_at_last_point, axis_of_direct_bridge)))
-        default_forward_angle = -1 * sign_here * unsigned_angle_between_vectors(axis_at_last_point, axis_of_direct_bridge)
-
-    # # TEMPORARY -- FOR DEBUG
-    # core_radius = 1
-    # mfig = mlab.figure(size=(1024, 768), bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
-    # tube_radius = 0.01
-    # arccolor = tuple(np.array([44, 160, 44]) / 255)
-    # arccolor = (1, 0, 0)
-    # plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-    #
-    # l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2],
-    #                 color=tuple(np.array([31, 119, 180]) / 255),
-    #                 tube_radius=tube_radius, opacity=0.5)
-    # next_axis = rotate_3d_vector(axis_at_last_point, sphere_trace[-1], input_declination_angle-default_forward_angle)
-    # next_point = rotate_3d_vector(sphere_trace[-1], next_axis, 0.1)
-    # for point_here in [next_point]:
-    #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
-    # mlab.show()
-    # # END OF TEMPORARY
+        default_forward_angle = -1 * sign_here * unsigned_angle_between_vectors(axis_at_last_point,
+                                                                                axis_of_direct_bridge)
 
     # implemennt option where default direction is connecting the end and beginning point
     if default_backward_angle == 'directbridge':
@@ -727,28 +744,11 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                                    np.cross(axis_at_first_point, axis_of_direct_bridge)))
         default_backward_angle = sign_here * unsigned_angle_between_vectors(axis_at_first_point, axis_of_direct_bridge)
 
-    # # TEMPORARY -- FOR DEBUG
-    # core_radius = 1
-    # mfig = mlab.figure(size=(1024, 768), bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
-    # tube_radius = 0.01
-    # arccolor = tuple(np.array([44, 160, 44]) / 255)
-    # arccolor = (1, 0, 0)
-    # plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
-    # l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2],
-    #                 color=tuple(np.array([31, 119, 180]) / 255),
-    #                 tube_radius=tube_radius, opacity=0.5)
-    # axis_at_last_point = np.cross(sphere_trace[0], sphere_trace[1])
-    # next_axis = rotate_3d_vector(axis_at_last_point, sphere_trace[0], -(input_declination_angle-default_backward_angle))
-    # next_point = rotate_3d_vector(sphere_trace[0], next_axis, -0.1)
-    # for point_here in [next_point]:
-    #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(0, 1, 0))
-    # mlab.show()
-    # # END OF TEMPORARY
-
     forward_declination_angle = filter_forward_declination(input_declination_angle - default_forward_angle, input_path)
-    print(f'Forward angle:  raw={input_declination_angle}, plusdef={input_declination_angle - default_forward_angle}, filtered={forward_declination_angle}')
-    turn_angle_increment = forward_declination_angle/npoints
-    geodesic_length_of_single_step = np.abs(min_curvature_radius * forward_declination_angle/npoints)
+    print(
+        f'Forward angle:  raw={input_declination_angle}, plusdef={input_declination_angle - default_forward_angle}, filtered={forward_declination_angle}')
+    turn_angle_increment = forward_declination_angle / npoints
+    geodesic_length_of_single_step = np.abs(min_curvature_radius * forward_declination_angle / npoints)
     point_here = np.copy(sphere_trace[-1])
     forward_arc_points = [point_here]
     for i in range(npoints):
@@ -761,21 +761,22 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
 
     def get_backward_arc(input_declination_angle, input_path, sphere_trace):
         axis_at_last_point = np.cross(sphere_trace[0], sphere_trace[1])
-        backward_declination_angle = filter_backward_declination(input_declination_angle - default_backward_angle, input_path)
-        print(f'Backward angle: raw={input_declination_angle},  plusdef={input_declination_angle - default_backward_angle}, filtered={backward_declination_angle}')
-        turn_angle_increment = backward_declination_angle/npoints
-        geodesic_length_of_single_step = np.abs(min_curvature_radius * backward_declination_angle/npoints)
+        backward_declination_angle = filter_backward_declination(input_declination_angle - default_backward_angle,
+                                                                 input_path)
+        print(
+            f'Backward angle: raw={input_declination_angle},  plusdef={input_declination_angle - default_backward_angle}, filtered={backward_declination_angle}')
+        turn_angle_increment = backward_declination_angle / npoints
+        geodesic_length_of_single_step = np.abs(min_curvature_radius * backward_declination_angle / npoints)
         point_here = np.copy(sphere_trace[0])
         backward_arc_points = [point_here]
         for i in range(npoints):
-            next_axis = rotate_3d_vector(axis_at_last_point, point_here, -1*turn_angle_increment)
-            next_point = rotate_3d_vector(point_here, next_axis, -1*geodesic_length_of_single_step)
+            next_axis = rotate_3d_vector(axis_at_last_point, point_here, -1 * turn_angle_increment)
+            next_point = rotate_3d_vector(point_here, next_axis, -1 * geodesic_length_of_single_step)
             backward_arc_points.append(next_point)
             axis_at_last_point = np.copy(next_axis)
             point_here = np.copy(next_point)
         backward_arc_points = np.array(backward_arc_points)
         return backward_arc_points
-
 
     backward_arc_points = get_backward_arc(input_declination_angle, input_path, sphere_trace)
 
@@ -790,8 +791,8 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
     # backward_sign2 = np.dot(backward_arc_points[-1] - sphere_trace[0], reference_plane_normal2)
 
     # if they are not on the same side, then use opposite declination for backward arc
-    if (forward_sign1 * backward_sign1 < 0): # or (forward_sign2 * backward_sign2 < 0):
-        backward_arc_points = get_backward_arc(-1*input_declination_angle, input_path, sphere_trace)
+    if (forward_sign1 * backward_sign1 < 0):  # or (forward_sign2 * backward_sign2 < 0):
+        backward_arc_points = get_backward_arc(-1 * input_declination_angle, input_path, sphere_trace)
 
         reference_plane_normal1 = np.cross(backward_arc_points[-2], forward_arc_points[-2])
         forward_sign1 = np.dot(forward_arc_points[-1] - forward_arc_points[-2], reference_plane_normal1)
@@ -800,14 +801,14 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
         # reference_plane_normal2 = np.cross(sphere_trace[-1], sphere_trace[0])
         # forward_sign2 = np.dot(forward_arc_points[-1] - sphere_trace[-1], reference_plane_normal2)
         # backward_sign2 = np.dot(backward_arc_points[-1] - sphere_trace[0], reference_plane_normal2)
-    if (forward_sign1 * backward_sign1 < 0):# or (forward_sign2 * backward_sign2 < 0):
+    if (forward_sign1 * backward_sign1 < 0):  # or (forward_sign2 * backward_sign2 < 0):
         # if still not on same side even despite the sign flip
         print('Deflections are never on the same side. Escaping.')
         res = input_path
         is_successful = False
     else:
         pd = pairwise_distances(forward_arc_points, backward_arc_points)
-        if np.min(pd) < 2*geodesic_length_of_single_step:
+        if np.min(pd) < 2 * geodesic_length_of_single_step:
             print('Intersection of forward and backward arcs. Escaping.')
             res = input_path
             is_successful = False
@@ -821,20 +822,22 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
             #   two ends of input path and (0, 0, 0)
             sign_marker = 1
             if np.dot(intersection, reference_plane_normal1) * forward_sign1 < 0:
-                intersection = -1*intersection
+                intersection = -1 * intersection
                 sign_marker = -1
             geodesic_length_from_intersection_to_forward_arc = unsigned_angle_between_vectors(intersection,
                                                                                               forward_arc_points[-1])
             geodesic_length_from_intersection_to_backward_arc = unsigned_angle_between_vectors(intersection,
-                                                                                              backward_arc_points[-1])
-            angle_at_intersection = unsigned_angle_between_vectors(forward_straight_section_axis, backward_straight_section_axis)
+                                                                                               backward_arc_points[-1])
+            angle_at_intersection = unsigned_angle_between_vectors(forward_straight_section_axis,
+                                                                   backward_straight_section_axis)
             # if angle_at_intersection > np.pi/2:
             #     angle_at_intersection = np.pi - angle_at_intersection
-            geodesic_length_from_intersection_to_tangent_of_main_arc = min_curvature_radius / np.tan(angle_at_intersection/2)
+            geodesic_length_from_intersection_to_tangent_of_main_arc = min_curvature_radius / np.tan(
+                angle_at_intersection / 2)
             forward_straight_section_length = geodesic_length_from_intersection_to_forward_arc - \
                                               geodesic_length_from_intersection_to_tangent_of_main_arc
             backward_straight_section_length = geodesic_length_from_intersection_to_backward_arc - \
-                                              geodesic_length_from_intersection_to_tangent_of_main_arc
+                                               geodesic_length_from_intersection_to_tangent_of_main_arc
             if (forward_straight_section_length <= 0) or (backward_straight_section_length <= 0):
                 print('Impossible to make main arc: intersection too close. Escaping')
                 res = input_path
@@ -846,18 +849,19 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                                                                                             forward_straight_section_length),
                                                                            npoints=npoints)
                 backward_straight_section_points = bridge_two_points_by_arc(backward_arc_points[-1],
-                                                                           rotate_3d_vector(backward_arc_points[-1],
-                                                                                            backward_straight_section_axis,
-                                                                                            backward_straight_section_length),
-                                                                           npoints=npoints)
+                                                                            rotate_3d_vector(backward_arc_points[-1],
+                                                                                             backward_straight_section_axis,
+                                                                                             backward_straight_section_length),
+                                                                            npoints=npoints)
 
                 # main arc, version 2
-                main_arc_radius = np.sqrt(1 / (1 + (1/min_curvature_radius)**2))
+                main_arc_radius = np.sqrt(1 / (1 + (1 / min_curvature_radius) ** 2))
                 # Find center of main arc circle
                 aa = np.cross(forward_straight_section_points[-1], forward_straight_section_axis)
                 bb = np.cross(backward_straight_section_points[-1], backward_straight_section_axis)
                 main_arc_center = sign_marker * np.cross(aa, bb)
-                main_arc_center = main_arc_center/np.linalg.norm(main_arc_center) * np.sqrt(1 - main_arc_radius**2)
+                main_arc_center = main_arc_center / np.linalg.norm(main_arc_center) * np.sqrt(1 - main_arc_radius ** 2)
+
                 def make_main_arc():
                     start = forward_straight_section_points[-1] - main_arc_center
                     end = backward_straight_section_points[-1] - main_arc_center
@@ -865,13 +869,17 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     endlen = np.linalg.norm(end)
                     # assert np.isclose(np.linalg.norm(start), main_arc_radius)
                     # assert np.isclose(np.linalg.norm(end), main_arc_radius)
-                    full_turn_angle = -1*sign_marker*unsigned_angle_between_vectors(start, end)
-                    full_turn_angle = -1 * sign_marker * np.arccos(np.dot(start, end)/np.linalg.norm(start)/np.linalg.norm(end))
+                    full_turn_angle = -1 * sign_marker * unsigned_angle_between_vectors(start, end)
+                    full_turn_angle = -1 * sign_marker * np.arccos(
+                        np.dot(start, end) / np.linalg.norm(start) / np.linalg.norm(end))
                     main_arc_points = []
                     thetas = np.linspace(0, full_turn_angle, npoints)
                     for theta in thetas:
-                        main_arc_points.append(main_arc_center + rotate_3d_vector(start, main_arc_center/np.linalg.norm(main_arc_center), theta))
+                        main_arc_points.append(
+                            main_arc_center + rotate_3d_vector(start, main_arc_center / np.linalg.norm(main_arc_center),
+                                                               theta))
                     return np.array(main_arc_points)
+
                 main_arc_points = make_main_arc()
 
                 backward_straight_section_points = backward_straight_section_points[::-1]
@@ -880,20 +888,24 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     core_radius = 1
                     mfig = mlab.figure(size=(1024, 768), bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
                     tube_radius = 0.01
-                    arccolor = tuple(np.array([44, 160, 44])/255)
+                    arccolor = tuple(np.array([44, 160, 44]) / 255)
                     arccolor = (1, 0, 0)
                     plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
 
-                    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=tuple(np.array([31,119,180])/255),
+                    l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2],
+                                    color=tuple(np.array([31, 119, 180]) / 255),
                                     tube_radius=tube_radius, opacity=0.5)
                     for piece_of_bridge in [forward_arc_points, backward_arc_points]:
-                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=arccolor,
+                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2],
+                                        color=arccolor,
                                         tube_radius=tube_radius, opacity=0.5)
                     for piece_of_bridge in [forward_straight_section_points, backward_straight_section_points]:
-                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=tuple(np.array([255, 127, 14])/255),
+                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2],
+                                        color=tuple(np.array([255, 127, 14]) / 255),
                                         tube_radius=tube_radius, opacity=0.5)
                     for piece_of_bridge in [main_arc_points]:
-                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2], color=arccolor,
+                        p = mlab.plot3d(piece_of_bridge[:, 0], piece_of_bridge[:, 1], piece_of_bridge[:, 2],
+                                        color=arccolor,
                                         tube_radius=tube_radius, opacity=0.5)
                     # for point_here in [backward_arc_points[0]]:
                     #     mlab.points3d(point_here[0], point_here[1], point_here[2], scale_factor=0.05, color=(1, 1, 0))
@@ -901,7 +913,7 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     mlab.savefig('tests/figures/{0:.2f}.png'.format(input_declination_angle))
                     if make_animation:
                         mlab.view(elevation=150)
-                        for frame_id,azimuth in enumerate(np.linspace(0, 359, 60)):
+                        for frame_id, azimuth in enumerate(np.linspace(0, 359, 60)):
                             mlab.view(azimuth=azimuth)
                             # camera_radius = 4
                             # mfig.scene.camera.position = [camera_radius*np.cos(azimuth), camera_radius*np.sin(azimuth), -2.30]
@@ -913,14 +925,14 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     else:
                         mlab.close()
                 trace_with_bridge = np.concatenate((sphere_trace,
-                                      forward_arc_points[1:],
-                                      forward_straight_section_points[1:],
-                                      main_arc_points[1:],
-                                      backward_straight_section_points[1:],
-                                      backward_arc_points[1:-1]),
-                                     axis=0)
+                                                    forward_arc_points[1:],
+                                                    forward_straight_section_points[1:],
+                                                    main_arc_points[1:],
+                                                    backward_straight_section_points[1:],
+                                                    backward_arc_points[1:-1]),
+                                                   axis=0)
 
-                #check for self-intersections
+                # check for self-intersections
                 if spherical_trace_is_self_intersecting(trace_with_bridge):
                     res = input_path
                     is_successful = False
@@ -930,6 +942,7 @@ def make_smooth_bridge_candidate(input_declination_angle, input_path, npoints, m
                     is_successful = True
     return res, is_successful
 
+
 def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1, linewidth=5):
     fig, ax = plt.subplots(figsize=(12, 2))
     alphabridge = 0.3
@@ -937,11 +950,11 @@ def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1, linewi
     dxs = [0,
            - path[-1, 0],
            path[-1, 0],
-           2*path[-1, 0]]
+           2 * path[-1, 0]]
     dys = [0,
            - path[-1, 1] + path[0, 1],
            - path[0, 1] + path[-1, 1],
-           - path[0, 1] + 2*path[-1, 1]]
+           - path[0, 1] + 2 * path[-1, 1]]
     for k in range(len(dxs)):
         dx = dxs[k]
         dy = dys[k]
@@ -954,14 +967,17 @@ def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1, linewi
         plt.plot(path[-(bridgelen):, 0] + dx,
                  path[-(bridgelen):, 1] + dy, '-', alpha=alphabridge, color='C1', linewidth=linewidth)
         plt.plot(path[-(bridgelen):-(bridgelen) + npoints - 1, 0] + dx,
-                 path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=alphabridge, color='red', linewidth=linewidth)
+                 path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=alphabridge, color='red',
+                 linewidth=linewidth)
         plt.plot(path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 0] + dx,
-                 path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=alphabridge, color='red',
+                 path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=alphabridge,
+                 color='red',
                  linewidth=linewidth)
         plt.plot(path[-(npoints - 1):, 0] + dx,
                  path[-(npoints - 1):, 1] + dy, '-', alpha=alphabridge, color='red',
                  linewidth=linewidth)
-    plt.scatter([path[0, 0], path[-1, 0], path[0, 0]+2*path[-1, 0]], [path[0, 1], path[-1, 1], 2*path[-1, 1]], s=35, alpha=0.8, color='black', zorder=100)
+    plt.scatter([path[0, 0], path[-1, 0], path[0, 0] + 2 * path[-1, 0]], [path[0, 1], path[-1, 1], 2 * path[-1, 1]],
+                s=35, alpha=0.8, color='black', zorder=100)
     # plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=35, alpha=0.8, color='black', zorder=100)
 
     plt.axis('equal')
@@ -971,69 +987,9 @@ def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1, linewi
         fig.savefig(savetofilename, dpi=300)
     plt.show()
 
-# def plot_three_path_periods(input_path, savetofile=False, plot_midpoints=False):
-#     figtraj = plt.figure(10, figsize=(10, 5))
-#     dataxlen = np.max(input_path[:, 0])
-#
-#     def plot_periods(data, linestyle, linewidth):
-#         plt.plot(data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle, linewidth=linewidth)
-#         plt.plot(dataxlen + data[:, 0], data[:, 1], color='black', alpha=1, linestyle=linestyle, linewidth=linewidth)
-#         plt.plot(2 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
-#                  linewidth=linewidth)
-#         plt.plot(3 * dataxlen + data[:, 0], data[:, 1], color='black', alpha=0.3, linestyle=linestyle,
-#                  linewidth=linewidth)
-#
-#     # plot_periods(data, '--', linewidth=0.5)
-#     plot_periods(input_path, '-', linewidth=1)
-#     # plot_periods(projection_centers, '-', linewidth=1)
-#
-#     for shift in dataxlen * np.arange(3):
-#         plt.scatter(shift + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
-#     # plt.scatter(dataxlen + input_path[-1, 0], input_path[-1, 1], s=35, color='black')
-#     if plot_midpoints:
-#         midpoint_index = int(round(input_path.shape[0]/2))
-#         for shift in dataxlen*np.arange(4):
-#             plt.scatter(shift + input_path[midpoint_index, 0], input_path[midpoint_index, 1], s=35, facecolors='white', edgecolors='black')
-#     plt.axis('equal')
-#     if savetofile:
-#         figtraj.savefig(f'{savetofile}.png', dpi=300)
-#         figtraj.savefig(f'{savetofile}.eps')
-#     plt.show()
-#
-# def plot_bridged_path(path, savetofilename=False, npoints=30, netscale=1):
-#     fig, ax = plt.subplots(figsize=(8, 2))
-#     bridgelen = npoints * 5 - 5
-#     dxs = [0,
-#            - path[-1, 0],
-#            path[-1, 0]]
-#     dys = [0,
-#            - path[-1, 1] + path[0, 1],
-#            - path[0, 1] + path[-1, 1]]
-#     for k in range(len(dxs)):
-#         dx = dxs[k]
-#         dy = dys[k]
-#         plt.plot(path[:, 0] + dx,
-#                  path[:, 1] + dy, '-', alpha=1, color='C1', linewidth=2)
-#         plt.plot(path[:-(bridgelen), 0] + dx,
-#                  path[:-(bridgelen), 1] + dy, '-', alpha=1, color='C0', linewidth=2)
-#         plt.plot(path[-(bridgelen):-(bridgelen) + npoints - 1, 0] + dx,
-#                  path[-(bridgelen):-(bridgelen) + npoints - 1, 1] + dy, '-', alpha=1, color='red', linewidth=2)
-#         plt.plot(path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 0] + dx,
-#                  path[-(bridgelen) + npoints * 2 - 2:-(bridgelen) + npoints * 3 - 3, 1] + dy, '-', alpha=1, color='red',
-#                  linewidth=2)
-#         plt.plot(path[-(npoints - 1):, 0] + dx,
-#                  path[-(npoints - 1):, 1] + dy, '-', alpha=1, color='red',
-#                  linewidth=2)
-#     plt.scatter([path[0, 0], path[-1, 0]], [path[0, 1], path[-1, 1]], s=10, alpha=0.8, color='black', zorder=100)
-#
-#     plt.axis('equal')
-#     plt.xlim(-8, -8 + 25 * netscale)
-#     ax.axis('off')
-#     if savetofilename:
-#         fig.savefig(savetofilename, dpi=300)
-#     plt.show()
 
-def make_random_path(Npath = 150, amplitude = 2, x_span_in_2pis = 0.8, seed=1, make_ends_horizontal=False, start_from_zero=True,
+def make_random_path(Npath=150, amplitude=2, x_span_in_2pis=0.8, seed=1, make_ends_horizontal=False,
+                     start_from_zero=True,
                      end_with_zero=False, savgom_window_1=31, savgol_window_2=7):
     np.random.seed(seed)
     xs = np.linspace(0, 2 * np.pi * x_span_in_2pis, Npath)
@@ -1043,7 +999,7 @@ def make_random_path(Npath = 150, amplitude = 2, x_span_in_2pis = 0.8, seed=1, m
     if start_from_zero:
         ys = ys - ys[0]
     if end_with_zero:
-        ys = ys - xs*(ys[-1] - ys[0])/(xs[-1] - xs[0])
+        ys = ys - xs * (ys[-1] - ys[0]) / (xs[-1] - xs[0])
     if make_ends_horizontal == 'both':
         ys[1] = ys[0]
         ys[-1] = ys[-2]
@@ -1057,31 +1013,35 @@ def make_random_path(Npath = 150, amplitude = 2, x_span_in_2pis = 0.8, seed=1, m
 
 def blend_two_paths(path1, path2, fraction_of_path1):
     assert np.all(path1.shape == path2.shape)
-    assert np.all(path1[:,0] == path2[:,0])
+    assert np.all(path1[:, 0] == path2[:, 0])
     assert fraction_of_path1 <= 1
     assert fraction_of_path1 >= 0
     result = np.copy(path1)
-    result[:,1] = fraction_of_path1 * path1[:, 1] + (1-fraction_of_path1) * path2[:, 1]
+    result[:, 1] = fraction_of_path1 * path1[:, 1] + (1 - fraction_of_path1) * path2[:, 1]
     return result
+
 
 def get_end_to_end_distance(input_path, uniform_scale_factor):
     sphere_trace = trace_on_sphere(input_path, kx=uniform_scale_factor, ky=uniform_scale_factor)
-    return np.linalg.norm(sphere_trace[0]-sphere_trace[-1])
+    return np.linalg.norm(sphere_trace[0] - sphere_trace[-1])
 
 
 def get_scale_that_minimizes_end_to_end(input_path, minimal_scale=0.1):
     # find the scale factor that gives minimal end-to-end distance
     # the initial guess is such that length in x axis is 2*pi
     initial_x_length = np.abs(input_path[-1, 0] - input_path[0, 0])
-    initial_guess = 2*np.pi/initial_x_length
+    initial_guess = 2 * np.pi / initial_x_length
     print(initial_guess)
+
     def func(x):
         print(x)
         return [get_end_to_end_distance(input_path, s) for s in x]
+
     bounds = [[minimal_scale, np.inf]]
     solution = minimize(func, initial_guess, bounds=bounds)
     print(solution)
     return solution.x
+
 
 def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
     scale_max = scale_range[1]
@@ -1092,6 +1052,7 @@ def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
         logging.info(f'Mismatch at max scale = {mismatch_angle_for_path(input_path_0 * scale_min)}')
         logging.info(f'Mismatch at min scale = {mismatch_angle_for_path(input_path_0 * scale_max)}')
         return False
+
     def left_hand_side(x):  # the function whose root we want to find
         logging.debug(f'Sampling function at x={x}')
         return mismatch_angle_for_path(input_path_0 * x)
@@ -1099,6 +1060,7 @@ def minimize_mismatch_by_scaling(input_path_0, scale_range=(0.8, 1.2)):
     best_scale = brentq(left_hand_side, a=scale_min, b=scale_max, maxiter=80, xtol=0.00001, rtol=0.00005)
     logging.debug(f'Minimized mismatch angle = {left_hand_side(best_scale)}')
     return best_scale
+
 
 def double_the_path(input_path_0, do_plot=False, do_sort=True):
     # input_path_0 = input_path
@@ -1109,7 +1071,7 @@ def double_the_path(input_path_0, do_plot=False, do_sort=True):
 
     # input_path_1 = np.concatenate((input_path_0, np.flipud))
     if do_plot:
-        plt.plot(input_path_0[:, 0], input_path_0[:, 1], '-', color='C2')#, label='Asymmetric')
+        plt.plot(input_path_0[:, 0], input_path_0[:, 1], '-', color='C2')  # , label='Asymmetric')
         plt.plot(input_path_1[:, 0], input_path_1[:, 1], '-', color='C0')
         plt.axis('equal')
         # plt.legend(loc='upper left')
@@ -1125,16 +1087,18 @@ def double_the_path(input_path_0, do_plot=False, do_sort=True):
 
     return sort_path(input_path_0)
 
+
 def multiply_the_path(input_path_0, m, do_plot=False, do_sort=True):
     input_path_to_append = np.copy(input_path_0)
     multiplied_path = np.copy(input_path_0)
-    for i in range(m-1):
+    for i in range(m - 1):
         input_path_to_append[:, 0] = (i + 1) * input_path_0[-1, 0] + input_path_0[:, 0]
         # input_path_to_append[:,1] = -1*input_path_to_append[:,1]
         multiplied_path = np.concatenate((multiplied_path, sort_path(input_path_to_append)[1:, ]), axis=0)
     if do_sort:
         multiplied_path = sort_path(multiplied_path)
     return sort_path(multiplied_path)
+
 
 ## This old implementation is wrong by a integer number of 2*pi
 def get_gb_area_deprecated(input_path):
@@ -1145,13 +1109,13 @@ def get_gb_area_deprecated(input_path):
     # get total change of angle
     extended_trace = np.vstack((sphere_trace, sphere_trace[0, :], sphere_trace[1, :]))
 
-    #rotation angles on the extended path
+    # rotation angles on the extended path
     def rotation_angle_from_point_to_point(i):
         # from ith point to (i+1)th point of the extended path
-        if i <= input_path.shape[0]-2:
-            flat_vector_to_previous_point = input_path[i+1] - input_path[i]
+        if i <= input_path.shape[0] - 2:
+            flat_vector_to_previous_point = input_path[i + 1] - input_path[i]
             rotation_angle = np.linalg.norm(flat_vector_to_previous_point)
-        elif i == (input_path.shape[0]-1):
+        elif i == (input_path.shape[0] - 1):
             rotation_angle = np.arccos(np.dot(sphere_trace[0], sphere_trace[-1]))
         elif i == (input_path.shape[0]):
             flat_vector_to_previous_point = input_path[1] - input_path[0]
@@ -1185,13 +1149,15 @@ def get_gb_area_deprecated(input_path):
     logging.debug(f'Area = {gauss_bonnet_area / np.pi} pi')
     return gauss_bonnet_area
 
-def plot_3d_vector_with_origin(vector, vector_origin, color, tube_radius = 0.05):
+
+def plot_3d_vector_with_origin(vector, vector_origin, color, tube_radius=0.05):
     vector_end = vector + vector_origin
     points = np.vstack((vector_origin, vector_end))
     mlab.points3d(vector_end[0], vector_end[1], vector_end[2], scale_factor=0.1, color=color)
     mlab.plot3d(points[:, 0],
                 points[:, 1],
                 points[:, 2], color=color, tube_radius=tube_radius / 5, opacity=0.7)
+
 
 def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False, return_arc_normal=False):
     '''This function does not take into account the possibly changing rotation index of the spherical trace.
@@ -1200,17 +1166,18 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
 
     # Change of direction of the flat path:
     if flat_path_change_of_direction == 'auto':
-        flat_path_change_of_direction = np.sum(np.array([signed_angle_between_2d_vectors(input_path[i + 2] - input_path[i + 1],
-                                                              input_path[i + 1] - input_path[i])
-                                                        for i in range(input_path.shape[0] - 2)
-                                                        ]))
+        flat_path_change_of_direction = np.sum(
+            np.array([signed_angle_between_2d_vectors(input_path[i + 2] - input_path[i + 1],
+                                                      input_path[i + 1] - input_path[i])
+                      for i in range(input_path.shape[0] - 2)
+                      ]))
 
     # Change of direction due to 2 angles formed by great arc connecting the last and first point
 
     # direction from point 0 to point 1, expressed as normal of the respective arc on the sphere_trace
     if do_plot:
         tube_radius = 0.05
-        core_radius=1
+        core_radius = 1
         plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4)
         l = mlab.plot3d(sphere_trace[:, 0], sphere_trace[:, 1], sphere_trace[:, 2], color=(0, 0, 1),
                         tube_radius=tube_radius, opacity=0.3)
@@ -1233,9 +1200,9 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
 
     # Convert to trimesh point cloud and apply reverse rolling to origin
     point_at_plane = trimesh.PointCloud([[path_end_direction_vector_flat[0],
-                                            path_end_direction_vector_flat[1],
-                                            -1]])
-    point_at_plane.apply_transform(rotation_to_origin(input_path.shape[0]-1, input_path))
+                                          path_end_direction_vector_flat[1],
+                                          -1]])
+    point_at_plane.apply_transform(rotation_to_origin(input_path.shape[0] - 1, input_path))
     path_end_direction_vector = point_at_plane.vertices[0] - sphere_trace[-1, :]
 
     # compute the normal of that rotation arc
@@ -1249,7 +1216,7 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
     def get_signed_change_of_direction_at_point(first_arc_axis, second_arc_axis, central_point):
         unsigned_sine = np.cross(first_arc_axis, second_arc_axis)
         signed_sine = np.linalg.norm(unsigned_sine) * np.sign(np.dot(unsigned_sine,
-                             central_point))
+                                                                     central_point))
         signed_cosine = np.dot(first_arc_axis, second_arc_axis)
         return np.arctan2(signed_sine, signed_cosine)
 
@@ -1274,18 +1241,21 @@ def get_gb_area(input_path, flat_path_change_of_direction='auto', do_plot=False,
     logging.debug(f'Area = {gauss_bonnet_area / np.pi} pi')
 
     if do_plot:
-        plot_3d_vector_with_origin(vector=path_start_direction_vector, vector_origin=np.array([0, 0, -1]), color=(0, 0, 1))
+        plot_3d_vector_with_origin(vector=path_start_direction_vector, vector_origin=np.array([0, 0, -1]),
+                                   color=(0, 0, 1))
         plot_3d_vector_with_origin(vector=path_start_arc_normal, vector_origin=np.array([0, 0, -1]), color=(0, 1, 0))
-        plot_3d_vector_with_origin(vector=path_end_direction_vector, vector_origin=sphere_trace[-1, :], color = (0, 0, 1))
+        plot_3d_vector_with_origin(vector=path_end_direction_vector, vector_origin=sphere_trace[-1, :], color=(0, 0, 1))
         plot_3d_vector_with_origin(vector=path_end_arc_normal, vector_origin=sphere_trace[-1, :], color=(0, 1, 0))
-        plot_3d_vector_with_origin(vector=normal_of_arc_connecting_trace_ends, vector_origin=np.array([0, 0, 0]), color=(1, 1, 0))
+        plot_3d_vector_with_origin(vector=normal_of_arc_connecting_trace_ends, vector_origin=np.array([0, 0, 0]),
+                                   color=(1, 1, 0))
         mlab.show()
 
     if return_arc_normal:
-        end_to_end_distance = np.linalg.norm(sphere_trace[0]-sphere_trace[-1])
+        end_to_end_distance = np.linalg.norm(sphere_trace[0] - sphere_trace[-1])
         return gauss_bonnet_area, normal_of_arc_connecting_trace_ends, end_to_end_distance
     else:
         return gauss_bonnet_area
+
 
 def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, exclude_legitimate_discont=False,
                             adaptive_sampling=True, diff_thresh=2 * np.pi * 0.1, max_number_of_subdivisions=15):
@@ -1336,8 +1306,8 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, 
                                                                          return_arc_normal=True)
                     else:
                         gb_area_here = get_gb_area(input_path * new_scale_here,
-                                                                         flat_path_change_of_direction,
-                                                                         return_arc_normal=False)
+                                                   flat_path_change_of_direction,
+                                                   return_arc_normal=False)
                     insert_areas.append(gb_area_here)
                     insert_axes.append(arc_axis)
                     insert_ends.append(end_to_end)
@@ -1354,9 +1324,9 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, 
     gb_areas = np.array(gauss_bonnet_areas)
     connecting_arc_axes = tuple(connecting_arc_axes)
     # compensation for integer number of 2*pi due to rotation index of the curve
-    gb_area_zero = round(gb_areas[0]/np.pi) * np.pi
+    gb_area_zero = round(gb_areas[0] / np.pi) * np.pi
     gb_areas -= gb_area_zero
-    logging.info(f'Initial gauss-bonnet area is {gb_area_zero/np.pi} pi')
+    logging.info(f'Initial gauss-bonnet area is {gb_area_zero / np.pi} pi')
 
     # correct for changes of rotation index I upon scaling. Upon +1 or -1 change of I, the integral of geodesic curvature
     # (total change of direction) increments or decrements by 2*pi
@@ -1364,17 +1334,18 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, 
     additional_rotation_index_here = 0
     threshold_for_ind = 2 * np.pi * 0.75
     for i in range(1, gb_areas.shape[0]):
-        diff_here = gb_areas[i] - gb_areas[i-1]
+        diff_here = gb_areas[i] - gb_areas[i - 1]
         if np.abs(diff_here) > threshold_for_ind:
             if exclude_legitimate_discont and \
-                    ((np.dot(connecting_arc_axes[i], connecting_arc_axes[i - 1]) < 0) and (end_to_end_distances[i] > 1.4) and (end_to_end_distances[i-1] > 1.4)):
+                    ((np.dot(connecting_arc_axes[i], connecting_arc_axes[i - 1]) < 0) and (
+                            end_to_end_distances[i] > 1.4) and (end_to_end_distances[i - 1] > 1.4)):
                 # if start and end points of trace are antipodal and the arc axis has turned very much,
                 # then this change of area is real and the rotation index is unchanged
                 # By "very much" we (rather arbitrarily) mean by more than 90 degrees. Turn by more than 90 degrees is equibalent
                 #  to having a negative dot product of previous and current axis vectors
                 logging.info(f'Legitimate discontinuity of area is found at scale {sweeped_scales[i]}')
             else:
-                additional_rotation_index_here += np.round(diff_here/(2*np.pi))
+                additional_rotation_index_here += np.round(diff_here / (2 * np.pi))
         additional_rotation_indices[i] = additional_rotation_index_here
     gb_areas -= 2 * np.pi * additional_rotation_indices
 
@@ -1385,39 +1356,42 @@ def gb_areas_for_all_scales(input_path, minscale=0.01, maxscale=2, nframes=100, 
     # plt.plot(sweeped_scales, connecting_arc_axes, 'o-')
     # plt.show()
 
-
     return sweeped_scales, gb_areas
 
+
 def length_of_the_path(input_path_0):
-    ''''''
-    return np.sum(np.sqrt((np.diff(input_path_0[:, 0])**2 + np.diff(input_path_0[:, 1])**2)))
+    return np.sum(np.sqrt((np.diff(input_path_0[:, 0]) ** 2 + np.diff(input_path_0[:, 1]) ** 2)))
+
 
 def cumsum_half_length_along_the_path(input_path_0):
     x = input_path_0[:, 0]
     y = input_path_0[:, 1]
-    length_along_the_path = np.cumsum( np.sqrt((np.diff(x)**2 + np.diff(y)**2)) )
+    length_along_the_path = np.cumsum(np.sqrt((np.diff(x) ** 2 + np.diff(y) ** 2)))
     length_along_the_path = np.insert(length_along_the_path, 0, 0)
-    length_along_the_path = np.remainder(length_along_the_path, np.max(length_along_the_path)/2)
+    length_along_the_path = np.remainder(length_along_the_path, np.max(length_along_the_path) / 2)
     length_along_the_path /= np.max(length_along_the_path)
     return length_along_the_path
+
 
 def cumsum_full_length_along_the_path(input_path_0):
     x = input_path_0[:, 0]
     y = input_path_0[:, 1]
-    length_along_the_path = np.cumsum( np.sqrt((np.diff(x)**2 + np.diff(y)**2)) )
+    length_along_the_path = np.cumsum(np.sqrt((np.diff(x) ** 2 + np.diff(y) ** 2)))
     length_along_the_path = np.insert(length_along_the_path, 0, 0)
     length_along_the_path = np.remainder(length_along_the_path, np.max(length_along_the_path))
     length_along_the_path /= np.max(length_along_the_path)
     return length_along_the_path
 
+
 def upsample_path(input_path, by_factor=10, kind='linear'):
     old_indices = np.arange(input_path.shape[0])
-    max_index = input_path.shape[0]-1
-    new_indices = np.arange(0, max_index, 1/by_factor)
+    max_index = input_path.shape[0] - 1
+    new_indices = np.arange(0, max_index, 1 / by_factor)
     new_indices = np.append(new_indices, max_index)
     new_xs = interpolate.interp1d(old_indices, input_path[:, 0], kind=kind)(new_indices)
     new_ys = interpolate.interp1d(old_indices, input_path[:, 1], kind=kind)(new_indices)
     return np.stack((new_xs, new_ys)).T
+
 
 def plot_flat_path_with_color(input_path, half_of_input_path, axs, linewidth=1, alpha=1,
                               plot_single_period=False):
@@ -1438,7 +1412,7 @@ def plot_flat_path_with_color(input_path, half_of_input_path, axs, linewidth=1, 
         lc.set_alpha(alpha)
         line = axs.add_collection(lc)
 
-        #black dots at middle and ends of the path
+        # black dots at middle and ends of the path
         for point in [half_of_input_path[0], half_of_input_path[-1], input_path[-1]]:
             axs.scatter(point[0], point[1], color='black', s=10)
 
@@ -1464,6 +1438,7 @@ def plot_flat_path_with_color(input_path, half_of_input_path, axs, linewidth=1, 
 
         plt.axis('equal')
 
+
 def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half, scale, plotting_upsample_factor=1,
                                                     sphere_opacity=.8, plot_endpoints=False, endpoint_radius=0.1):
     length_from_start_to_here = cumsum_half_length_along_the_path(input_path)
@@ -1475,7 +1450,7 @@ def plot_spherical_trace_with_color_along_the_trace(input_path, input_path_half,
     last_index = sphere_trace.shape[0] // 2
     if USED_3D_PLOTTING_PACKAGE == 'mayavi':
         mfig = mlab.figure(size=(1024, 1024), \
-                    bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
+                           bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5))
         plot_sphere(r0=core_radius - tube_radius, line_radius=tube_radius / 4, sphere_opacity=sphere_opacity)
         mlab.plot3d(sphere_trace[:, 0],
                     sphere_trace[:, 1],
