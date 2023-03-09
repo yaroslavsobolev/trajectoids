@@ -29,7 +29,10 @@ compute_shape(input_path,
 
 This will compute the same number of "cutting boxes" as the number of points in the `input_path` and save 
 these boxes as `.obj` files into the `folder_for_meshes` directory. For obtaining the final trajetroid mesh,
-these boxes must be subtracted from a sphere of radius `R` greater than the core radius `r=1`.
+these boxes must be subtracted from a sphere of radius `R` greater than the core radius `r=1`. For this putpose,
+we imported all the boxes into Autodesk 3ds Max 2018 using the
+["Batch Export/Import v04.12" plugin](https://www.scriptspot.com/3ds-max/scripts/batch-exportimport) and then 
+used built-in boolean operators.
 
 ### Testing whether a two-period trajectoid exists for a various path types
 
@@ -48,6 +51,14 @@ If you use this code, please cite our paper:
 }
 ```
 -->
+
+### Tracking the center of mass on experimental videos
+
+See the `trajectory_analysis.py` script. To reproduce the tracking of specific experiments from the paper, uncompress
+the `frames.mp4` in `example/EXAMPLE_FOLDER/video/frames` into separate `.jpg` frames, then
+uncomment the respective lines at the end of `trajectory_analysis.py` script and run it. 
+The raw frames are not included into this repository because of their size (about half a gigabyte per experiment)
+but are available from Yaroslav (`yaroslav.sobolev@gmail.com`) on request.
 
 ## 3D printing
 

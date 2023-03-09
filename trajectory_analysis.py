@@ -213,7 +213,7 @@ if __name__ == '__main__':
     # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
     # plot_experimental_trajectory(target_folder)
 
-    ### this is for custong coloring of bouncing parts
+    ### this is for custom coloring of bouncing parts
     # bouncy_regions = [[20, 30], [40, 70]]
     # xs = np.loadtxt(target_folder + '/trajectory_x.txt')
     # ys = np.loadtxt(target_folder + '/trajectory_y.txt')
