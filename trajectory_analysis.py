@@ -11,24 +11,29 @@ from compute_trajectoid import rotate_2d
 import os
 from tqdm import tqdm
 
+
 def makedir_if_needed(path):
     if not os.path.exists(path):
         # Create a new directory because it does not exist
         os.makedirs(path)
         print("The new directory is created!")
 
+
 def number_of_files(target_dir):
     _, _, files = next(os.walk(target_dir))
     file_count = len(files)
     return file_count
 
+
 def convert_to_signal(raw_frame, two_colors=False):
     if not two_colors:
-        return raw_frame[:,:,2].astype(np.float) - raw_frame[:,:,1].astype(np.float) + raw_frame[:,:,0].astype(np.float)
+        return raw_frame[:, :, 2].astype(np.float) - raw_frame[:, :, 1].astype(np.float) + raw_frame[:, :, 0].astype(
+            np.float)
     else:
-        return raw_frame[:, :, 1].astype(np.float) + 1.5*raw_frame[:, :, 0].astype(np.float)
+        return raw_frame[:, :, 1].astype(np.float) + 1.5 * raw_frame[:, :, 0].astype(np.float)
         # return -raw_frame[:, :, 2].astype(np.float) + raw_frame[:, :, 1].astype(np.float) + raw_frame[:, :, 0].astype(
         # np.float)
+
 
 def get_median_frame(min_frame, target_folder, nframes, step=10, two_colors=False):
     list_of_frames = []
@@ -41,6 +46,7 @@ def get_median_frame(min_frame, target_folder, nframes, step=10, two_colors=Fals
         list_of_frames.append(convert_to_signal(raw_frame, two_colors=two_colors))
     return np.median(np.array(list_of_frames), axis=0)
 
+
 def trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=0, nframes=False, do_debug_plots=False,
                                        two_colors=False, bkg_nframes=False, bkg_minframe=False, bkg_step=10):
     if not nframes:
@@ -52,8 +58,9 @@ def trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=0,
     if not bkg_minframe:
         bkg_minframe = min_frame
 
-    #get background
-    background_frame = get_median_frame(bkg_minframe, target_folder, nframes=bkg_nframes, two_colors=two_colors, step=bkg_step)
+    # get background
+    background_frame = get_median_frame(bkg_minframe, target_folder, nframes=bkg_nframes, two_colors=two_colors,
+                                        step=bkg_step)
     if do_debug_plots:
         plt.imshow(background_frame)
         plt.show()
@@ -80,16 +87,17 @@ def trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=0,
 
             def getLargestCC(segmentation):
                 labels = label(segmentation)
-                assert( labels.max() != 0 ) # assume at least 1 CC
-                largestCC = labels == np.argmax(np.bincount(labels.flat)[1:])+1
+                assert (labels.max() != 0)  # assume at least 1 CC
+                largestCC = labels == np.argmax(np.bincount(labels.flat)[1:]) + 1
                 return largestCC
+
             largest = getLargestCC(frame)
-            largest_comp = np.zeros_like(frame)
-            largest_comp[largest] = 1
-            # plt.imshow(largest_comp)
+            largest_connected_component = np.zeros_like(frame)
+            largest_connected_component[largest] = 1
+            # plt.imshow(largest_connected_component)
             # frame = remove_small_objects(frame, min_size=15500)
             # plt.imshow(frame)
-            frame = largest_comp
+            frame = largest_connected_component
 
             chull = convex_hull_image(frame)
             if do_debug_plots:
@@ -101,8 +109,9 @@ def trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=0,
             cmass_ys.append(cmass[0])
             ### fancy_coloring_of_trajectory
             if len(cmass_xs) > 1:
-                for i in range(len(cmass_xs)-1):
-                    plt.plot([cmass_xs[i], cmass_xs[i+1]], [cmass_ys[i], cmass_ys[i+1]], color='white', linewidth=2, alpha=0.4)
+                for i in range(len(cmass_xs) - 1):
+                    plt.plot([cmass_xs[i], cmass_xs[i + 1]], [cmass_ys[i], cmass_ys[i + 1]], color='white', linewidth=2,
+                             alpha=0.4)
             # plt.plot(cmass_xs, cmass_ys, color='greenyellow', linewidth=2, alpha=0.6)
             if not two_colors:
                 plt.scatter(cmass[1], cmass[0], s=100, c='limegreen', alpha=0.5)
@@ -123,18 +132,20 @@ def trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=0,
     np.savetxt(target_folder + '/trajectory_x.txt', cmass_xs)
     np.savetxt(target_folder + '/trajectory_y.txt', cmass_ys)
 
+
 def plot_experimental_trajectory(target_folder):
     xs = np.loadtxt(target_folder + '/trajectory_x.txt')
     ys = np.loadtxt(target_folder + '/trajectory_y.txt')
-    f1 = plt.figure(1, figsize=(10,3))
-    plt.plot(xs, -1*ys, alpha=1)
+    f1 = plt.figure(1, figsize=(10, 3))
+    plt.plot(xs, -1 * ys, alpha=1)
     plt.axis('equal')
     f1.savefig(target_folder + '/trajectory_plot.png', dpi=300, transparent=True)
     plt.show()
 
-def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_folder = 'examples/random_doubled_3/video2',
-                          cropfrom=100, cropto = -50, x0 = 6.5, # - 1.1
-                          y0 = 0.1, # + 1
+
+def match_scale_and_angle(target_folder='examples/random_doubled_3', video_folder='examples/random_doubled_3/video2',
+                          cropfrom=100, cropto=-50, x0=6.5,  # - 1.1
+                          y0=0.1,  # + 1
                           initial_scale=1.1e-2,
                           initial_angle=0,
                           do_plot=True
@@ -142,7 +153,7 @@ def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_fol
     input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
     # make interpolator for the true path
     dataxlen = np.max(input_path[:, 0])
-    true_path = np.vstack( (input_path[:-1, :] + np.array([dataxlen * i, 0]) for i in range(4)) )
+    true_path = np.vstack((input_path[:-1, :] + np.array([dataxlen * i, 0]) for i in range(4)))
     if do_plot:
         plt.plot(true_path[:, 0], true_path[:, 1], '-', alpha=0.4)
     # plt.show()
@@ -150,7 +161,7 @@ def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_fol
 
     # experimental trajectory
     xs = np.loadtxt(video_folder + '/trajectory_x.txt')[cropfrom:cropto]
-    ys = -1*np.loadtxt(video_folder + '/trajectory_y.txt')[cropfrom:cropto]
+    ys = -1 * np.loadtxt(video_folder + '/trajectory_y.txt')[cropfrom:cropto]
     ys = ys - ys[0]
     xs = xs - xs[0]
 
@@ -165,7 +176,7 @@ def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_fol
         for i in range(data_rotated.shape[0]):
             data_rotated[i, :] = rotate_2d(data_rotated[i, :], angle)
         true_path_interp = interpolate.interp1d(data_rotated[:, 0], data_rotated[:, 1], fill_value='extrapolate')
-        y_here = (true_path_interp(x*scale + x0) - y0) / scale
+        y_here = (true_path_interp(x * scale + x0) - y0) / scale
         return y_here
 
     if do_plot:
@@ -175,7 +186,7 @@ def match_scale_and_angle(target_folder = 'examples/random_doubled_3', video_fol
         plt.show()
 
     popt, pcov = curve_fit(func, xs, ys, p0=(initial_scale, initial_angle, x0, y0),
-                           bounds = [[0, -np.pi/4, -np.inf, -np.inf], [np.inf, np.pi/4, np.inf, np.inf]])
+                           bounds=[[0, -np.pi / 4, -np.inf, -np.inf], [np.inf, np.pi / 4, np.inf, np.inf]])
     print(popt)
     if do_plot:
         plt.plot(xs, ys, alpha=0.5, color='C0')
@@ -248,10 +259,15 @@ if __name__ == '__main__':
     #                                    two_colors=True)
     # plot_experimental_trajectory(target_folder)
 
-    target_folder = 'examples/random_unclosed_1/video'
-    # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
-    trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=70, nframes=False, do_debug_plots=False, bkg_nframes=60, bkg_minframe=1, bkg_step=1)
+    target_folder = 'examples/little-prince-2-unclosed/video'
+    trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=0, nframes=False,
+                                       do_debug_plots=False, bkg_nframes=220, bkg_minframe=100, bkg_step=5)
     plot_experimental_trajectory(target_folder)
+
+    # target_folder = 'examples/random_unclosed_1/video'
+    # # trace_trajectory_from_video_frames(target_folder, threshold = 25, min_frame = 0, nframes = False, do_debug_plots = False)
+    # trace_trajectory_from_video_frames(target_folder, threshold=25, min_frame=70, nframes=False, do_debug_plots=False, bkg_nframes=60, bkg_minframe=1, bkg_step=1)
+    # plot_experimental_trajectory(target_folder)
 
     # # COMPARING 6D POSE TRACKING TO CENTROID-OF-SHADOW METHOD
     # target_folder = 'examples/random_doubled_3/video2'
