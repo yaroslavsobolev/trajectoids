@@ -13,6 +13,24 @@ Clone (checkout) this repository after installing these dependencies:
 
 `scikit-image` (for loading an image as input path)
 
+Full requirements are:
+
+```
+matplotlib~=3.1.0
+numpy~=1.21.6
+scipy~=1.5.2
+tqdm~=4.64.1
+scikit-image~=0.15.0
+trimesh~=3.7.0
+plotly~=5.8.2
+mayavi~=4.7.2
+scikit-learn~=0.21.2
+numba~=0.45.1
+```
+
+Installation should take less than 30 minutes on "normal" desktop computer. 
+Code has been tested on Windows 10 Pro 64-bit, Python 3.7 and with package version listed above.
+
 ## Running the code
 
 ### Computing the trajectoid shape from a path
@@ -38,6 +56,8 @@ used built-in boolean operators.
 
 See `existence_testing.py`. Uncomment the parts of `main` that check existence for the path type you are
 interested in and run. This script also contains functions for making animations shown in the Movie 3 of the paper.
+Typically takes less than 10 minutes on "normal" desktop computer, though execution time can be longer when testing a
+large range of scales with small step.
 
 <!---
 ## Citation
@@ -59,6 +79,7 @@ the `frames.mp4` in `example/EXAMPLE_FOLDER/video/frames` into separate `.jpg` f
 uncomment the respective lines at the end of `trajectory_analysis.py` script and run it. 
 The raw frames are not included into this repository because of their size (about half a gigabyte per experiment)
 but are available from Yaroslav (`yaroslav.sobolev@gmail.com`) on request.
+Should take less than half an hour on a "normal" desktop computer for <1000 frames in experimental video.
 
 ## 3D printing
 
