@@ -52,6 +52,10 @@ we imported all the boxes into Autodesk 3ds Max 2018 using the
 ["Batch Export/Import v04.12" plugin](https://www.scriptspot.com/3ds-max/scripts/batch-exportimport) and then 
 used built-in boolean operators.
 
+For reproducing the shape calculations of the trajectoids described in the paper, run respective `.py`  scripts
+in the `examples` folder. Each script is for one trajectoid and uses data from (and then outputs into) 
+the respective project directory in the `examples` subfolder. 
+
 ### Testing whether a two-period trajectoid exists for a various path types
 
 See `existence_testing.py`. Uncomment the parts of `main` that check existence for the path type you are

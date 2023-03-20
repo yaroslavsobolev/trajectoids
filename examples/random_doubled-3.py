@@ -76,12 +76,12 @@ if do_plot:
                     tube_radius=tube_radius)
     mlab.show()
 
-# np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
-# np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
-#
-# ## Make cut meshes for trajectoid
-# input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
-# compute_shape(input_path, kx=1, ky=1,
-#               folder_for_path=target_folder + '/folder_for_path',
-#               folder_for_meshes=target_folder + '/cut_meshes',
-#               core_radius=1, cut_size = 10)
+np.save(target_folder + '/folder_for_path/path_data.npy', input_path)
+np.savetxt(target_folder + '/folder_for_path/best_scale.txt', np.array([best_scale]))
+
+## Make cut meshes for trajectoid
+input_path = np.load(target_folder + '/folder_for_path/path_data.npy')
+compute_shape(input_path, kx=1, ky=1,
+              folder_for_path=target_folder + '/folder_for_path',
+              folder_for_meshes=target_folder + '/cut_meshes',
+              core_radius=1, cut_size = 10)
