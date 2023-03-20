@@ -33,6 +33,9 @@ Code has been tested on Windows 10 Pro 64-bit, Python 3.7 and with package versi
 
 ## Running the code
 
+All scripts are intended to run with "current working directory" set to repository root in the
+Python interpreter.
+
 ### Computing the trajectoid shape from a path
 Example usage with loading input path from an image:
 ```
@@ -54,7 +57,8 @@ used built-in boolean operators.
 
 For reproducing the shape calculations of the trajectoids described in the paper, run respective `.py`  scripts
 in the `examples` folder. Each script is for one trajectoid and uses data from (and then outputs into) 
-the respective project directory in the `examples` subfolder. 
+the respective project directory in the `examples` subfolder. These scripts should be run with
+"current working directory" set to repository root, not to the `examples` folder.
 
 ### Testing whether a two-period trajectoid exists for a various path types
 
