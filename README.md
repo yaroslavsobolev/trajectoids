@@ -13,6 +13,8 @@ Clone (checkout) this repository after installing these dependencies:
 
 `scikit-image` (for loading an image as input path)
 
+`mayavi` (for viewing the mappings of the trajectory onto the rolling sphere in 3D)
+
 Full requirements are:
 
 ```
@@ -29,7 +31,7 @@ numba~=0.45.1
 ```
 
 Installation should take less than 30 minutes on "normal" desktop computer. 
-Code has been tested on Windows 10 Pro 64-bit, Python 3.7 and with package version listed above.
+Code has been tested on Windows 10 Pro 64-bit, Python 3.7 and with package versions listed above.
 
 ## Running the code
 
