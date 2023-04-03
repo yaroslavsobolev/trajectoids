@@ -3,7 +3,6 @@ from numpy.linalg import norm as lnorm
 import trimesh
 import time
 import matplotlib.pyplot as plt
-%matplotlib inline
 from matplotlib.collections import LineCollection
 from skimage import io
 from math import atan2
