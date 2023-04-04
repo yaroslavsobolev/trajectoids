@@ -143,22 +143,50 @@ def spherical_trace_is_self_intersecting(sphere_trace):
     return intersection_detected
 
 
-def get_trajectory_from_raster_image(filename, do_plotting=True):
-    image = io.imread(filename)[:, :, 0]
-    trajectory_points = np.zeros(shape=(image.shape[0], 2))
+def get_trajectory_from_raster_image(filename, do_plotting=True, resample_to=200):
+    image = io.imread(filename)[:, :, 0].T
+    image = np.fliplr(image)
+    # trajectory_points = np.zeros(shape=(image.shape[0], 2))
+    xs = []
+    ys = []
     for i in range(image.shape[0]):
-        trajectory_points[i, 0] = i / image.shape[0] * 2 * np.pi  # assume that x dimension of path is 2*pi
-        trajectory_points[i, 1] = np.argmin(image[i, :]) / image.shape[1] * np.pi - np.pi / 2
-    trajectory_points[:, 1] -= trajectory_points[0, 1]  # make path relative to first point
-    trajectory_points = trajectory_points[::5, :]  # decimation by a factor 5
-    print('Decimated to {0} elements'.format(trajectory_points.shape[0]))
+        # if all pixels are white then don't add point here
+        if np.all(image[i, :] == 255):
+            continue
+        xs.append(i / image.shape[0] * 2 * np.pi)  # assume that x dimension of path is 2*pi
+        # ys.append(np.argmin(image[i, :]) / image.shape[0] * 2 * np.pi)
+        ys.append(np.mean(np.argwhere(image[i, :] != 255)) / image.shape[0] * 2 * np.pi)
+    # trajectory_points[:, 1] -= trajectory_points[0, 1]  # make path relative to first point
+    # trajectory_points = trajectory_points[::5, :]  # decimation by a factor 5
+    # print('Decimated to {0} elements'.format(trajectory_points.shape[0]))
+    # xs = trajectory_points[:, 0]
+    # ys = trajectory_points[:, 1]
+    xs = np.array(xs)
+    ys = np.array(ys)
+
+    # resample to 200 points
+    if resample_to is not None:
+        xs_new = np.linspace(xs[0], xs[-1], resample_to)
+        ys = np.interp(xs_new, xs, ys)
+        xs = xs_new
+
+    ys = ys - ys[0]
+    ys = ys - xs * (ys[-1] - ys[0]) / (xs[-1] - xs[0])
+    trajectory_points = np.stack((xs, ys)).T
+
     if do_plotting:
-        print(trajectory_points[0, 1])
-        print(trajectory_points[0, 1] - trajectory_points[-1, 1])
+        # print(trajectory_points[0, 1])
+        # print(trajectory_points[0, 1] - trajectory_points[-1, 1])
+        # plt.imshow(image.T)
         plt.plot(trajectory_points[:, 0], trajectory_points[:, 1])
         plt.axis('equal')
         plt.show()
     return trajectory_points
+
+
+def get_trajectory_from_csv(filename):
+    data = np.genfromtxt(filename, delimiter=',')
+    return data
 
 
 def rotation_from_point_to_point(point, previous_point):
