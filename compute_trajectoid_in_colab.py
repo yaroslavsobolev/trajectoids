@@ -163,11 +163,12 @@ def get_trajectory_from_raster_image(filename, do_plotting=True, resample_to=200
     # ys = trajectory_points[:, 1]
     xs = np.array(xs)
     ys = np.array(ys)
+    xs = xs - xs[0]
 
     # resample to 200 points
     if resample_to is not None:
         xs_new = np.linspace(xs[0], xs[-1], resample_to)
-        ys = np.interp(xs_new, xs, ys)
+        ys = interpolate.interp1d(xs, ys, fill_value='extrapolate')(xs_new)
         xs = xs_new
 
     ys = ys - ys[0]
