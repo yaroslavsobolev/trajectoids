@@ -1,6 +1,11 @@
 # Trajectoids
 Given a path, computes the 3D shape ("trajectoid") that would follow this path when rolling down a slope
 
+Online demo of this code is available in [a Google Colab Notebook](https://colab.research.google.com/drive/1XZ7Lf6pZu6nzEuqt_dUCHormeSbCCMlP#scrollTo=8m0bMqiLEmhU)
+: <a target="_blank" href="https://colab.research.google.com/drive/1XZ7Lf6pZu6nzEuqt_dUCHormeSbCCMlP#scrollTo=8m0bMqiLEmhU">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+
 ## Installation
 
 Clone (checkout) this repository after installing these dependencies:
