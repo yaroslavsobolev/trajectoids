@@ -6,6 +6,10 @@ Online demo of this code is available in [a Google Colab Notebook](https://colab
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
+DOI of respective research article: *to be added*
+
+DOI of this repository: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8116412.svg)](https://doi.org/10.5281/zenodo.8116412)
+
 ## Installation
 
 Clone (checkout) this repository after installing these dependencies:
