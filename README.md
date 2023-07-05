@@ -11,7 +11,7 @@ Online demo of this code is available in [a Google Colab Notebook](https://colab
 Clone (checkout) this repository after installing these dependencies:
 
 `Python 3.7+`
-
+k
 `trimesh`(the only hard dependency)
 
 `matplotlib` (if plotting is needed)

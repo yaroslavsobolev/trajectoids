@@ -202,7 +202,7 @@ plt.axis('equal')
 plt.scatter(input_path_single_section[0, 0], input_path_single_section[0, 1], color='black', zorder=100)
 plt.scatter(input_path_single_section[-1, 0], input_path_single_section[-1, 1], color='black', zorder=100)
 plt.plot([0, input_path_single_section[-1, 0]], [0, 0], '--', color='grey', linewidth=0.8, zorder=-100)
-fig.savefig('examples/penannular_smooth/path_plot.png', dpi=300)
+fig.savefig('examples/penannular_smooth/path_plot.eps', dpi=300)
 plt.plot()
 
 plt.show()

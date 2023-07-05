@@ -292,9 +292,9 @@ def compute_shape(data0, kx, ky, folder_for_path, folder_for_meshes='cut_meshes'
     # This code computes the positions and orientations of the boxes_for_cutting, and saves each box to a file.
     # These boxes are later loaded to 3dsmax and subtracted from a sphere
     rotation_of_entire_traj = trimesh.transformations.rotation_from_matrix(rotation_to_origin(data.shape[0] - 1, data))
-    print(rotation_of_entire_traj)
+    # print(rotation_of_entire_traj)
     angle = rotation_of_entire_traj[0]
-    print('Angle: {0}'.format(angle))
+    # print('Angle: {0}'.format(angle))
 
     np.save(folder_for_path + '/path_data', data)
     base_box = trimesh.creation.box(extents=[cut_size * core_radius, cut_size * core_radius, cut_size * core_radius],

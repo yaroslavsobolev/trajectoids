@@ -90,5 +90,5 @@ ax2.set_xlim(-0.1, 78)
 
 plt.ylim(-np.pi/2, 4)
 plt.tight_layout()
-fig.savefig('misc/figures/areas.png', dpi=300)
+fig.savefig('misc/figures/areas.eps', dpi=300)
 plt.show()

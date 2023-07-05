@@ -262,6 +262,29 @@ def make_zigzag_kinked(zigzag_edge_length_without_kink=np.pi / 2,
     input_path[:, 1] = input_path[:, 1] - input_path[0, 1]
     return input_path, np.array(tips)
 
+def make_sharp_antisymm(zigzag_edge_length_without_kink=np.pi / 2,
+                        zigzag_corner_angle=np.pi / 8,
+                        kink_angle_1=0.1, kink_angle_2=0.4, Ns=3):
+    input_path = np.array([[0, 0]])
+    gamma = np.pi - kink_angle_1 - kink_angle_2
+    length_of_segment_1 = zigzag_edge_length_without_kink / np.sin(gamma) * np.sin(kink_angle_2)
+    length_of_segment_2 = zigzag_edge_length_without_kink / np.sin(gamma) * np.sin(kink_angle_1)
+    angles = [-np.pi/2+np.pi/20,
+              -np.pi/2+np.pi/8,
+              -np.pi/2+np.pi/20,
+              -1*(-np.pi/2 + np.pi / 20),
+              -1*(-np.pi/2 + np.pi / 8),
+              -1*(-np.pi/2 + np.pi / 20)]
+    lengths = [1, 1/np.sqrt(2), 1, 1, 1/np.sqrt(2), 1]
+    tips = [[0, 0]]
+    for i, angle in enumerate(angles):
+        startpoint = input_path[-1, :]
+        new_section = add_interval(startpoint, angle, lengths[i], Ns=Ns)
+        input_path = np.concatenate((input_path, new_section[1:]), axis=0)
+        tips.append(new_section[-1])
+    input_path[:, 1] = input_path[:, 1] - input_path[0, 1]
+    return input_path, np.array(tips)
+
 def make_zigzag_kinked_asymm(zigzag_edge_length_without_kink=np.pi / 2,
                         zigzag_corner_angle=np.pi / 4,
                         kink_angle_1=0.2, kink_angle_2=0.8, Ns=3, asymmetry=0.6):
@@ -452,6 +475,8 @@ def select_path_by_path_type(path_parameter, path_type):
         input_path_single_section, tips = make_zigzag_kinked_asymm(asymmetry=path_parameter)
     elif path_type == 'zigzag_smoothed':
         input_path_single_section = make_zigzag_with_smoothed_corner(radius_of_curvature=path_parameter)
+    elif path_type == 'sharp_antisymm':
+        input_path_single_section, tips = make_sharp_antisymm(kink_angle_1=path_parameter, kink_angle_2=path_parameter*4)
     return input_path_single_section
 
 
@@ -893,7 +918,19 @@ if __name__ == '__main__':
     #                           path_parameter=0.09
     #                           )
 
-    test_trajectoid_existence(path_type='zigzag_kinked', path_for_figs='examples/zigzag_kinked/figures',
+    # test_trajectoid_existence(path_type='zigzag_kinked', path_for_figs='examples/zigzag_kinked/figures',
+    #                           forced_best_scale=19.6017, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
+    #                           nframes=2000,
+    #                           maxscale=40,#70,
+    #                           figsizefactor=0.85,
+    #                           circle_center=[-1.7, -0.6],
+    #                           circlealpha=1,
+    #                           plot_solution=False,
+    #                           range_for_searching_the_roots='auto',  #(10.6, 10.9),
+    #                           path_parameter=0.1
+    #                           )
+
+    test_trajectoid_existence(path_type='sharp_antisymm', path_for_figs='examples/sharp_antisymm/figures',
                               forced_best_scale=19.6017, #46.777252049239166, #10.805702204321273,  # 4.240589475501186,
                               nframes=2000,
                               maxscale=40,#70,
@@ -902,7 +939,7 @@ if __name__ == '__main__':
                               circlealpha=1,
                               plot_solution=False,
                               range_for_searching_the_roots='auto',  #(10.6, 10.9),
-                              path_parameter=0.1
+                              path_parameter=0.05
                               )
 
     # test_trajectoid_existence(path_type='zigzag_kinked_asymmetric', path_for_figs='examples/zigzag_kinked_asymmetric/figures',
