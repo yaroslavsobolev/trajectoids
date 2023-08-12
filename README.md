@@ -1,12 +1,22 @@
 # Trajectoids
+
+[![trajectoids](https://media.springernature.com/w440/springer-static/cover-hires/journal/41586/620/7973?as=webp)](https://rdcu.be/djkxf)
+
 Given a path, computes the 3D shape ("trajectoid") that would follow this path when rolling down a slope
+
+Watch a [popular explanation on YouTube channel of Nature](https://www.youtube.com/watch?v=2lW9HznqsVY):
+
+<a class="youtube" href="http://youtube.com/watch?v=2lW9HznqsVY">
+    <img src="http://i3.ytimg.com/vi/2lW9HznqsVY/default.jpg" alt="Trajectoids Video on Nature YouTube channel" />
+</a>
 
 Online demo of this code is available in [a Google Colab Notebook](https://colab.research.google.com/drive/1XZ7Lf6pZu6nzEuqt_dUCHormeSbCCMlP)
 : <a target="_blank" href="https://colab.research.google.com/drive/1XZ7Lf6pZu6nzEuqt_dUCHormeSbCCMlP">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
-DOI of respective research article: *to be added*
+Respective research article: Sobolev, Y.I., Dong, R., Tlusty, T. *et al*. Solid-body trajectoids shaped to roll along desired pathways.
+*Nature*  **620**, 310–315 (2023). DOI: [10.1038/s41586-023-06306-y](https://rdcu.be/diYqN)
 
 DOI of this repository: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8116412.svg)](https://doi.org/10.5281/zenodo.8116412)
 
